@@ -31,6 +31,7 @@ import {
   type WidgetBackground,
   type WidgetStyle,
 } from "../core/style";
+import type { PartsMode } from "../core/parts";
 import type { MonitorInfo, Settings, ThemeSetting } from "../core/types";
 import { openView, useView } from "../core/ui";
 import { checkForUpdate, installUpdate, openLink, REPO_URL, useUpdate } from "../core/update";
@@ -178,6 +179,19 @@ function General({ s }: { s: Settings }) {
               ["dark", "Тёмная"],
               ["light", "Светлая"],
               ["system", "Как в системе"],
+            ]}
+          />
+        </Row>
+      </Section>
+      <Section title="Части песни" hint="Подписи над куплетами и припевами: чья это часть. Разметку берём с Genius и сопоставляем с таймингами.">
+        <Row label="Подписывать">
+          <Segmented<PartsMode>
+            value={s.songParts}
+            onChange={(songParts) => updateSettings({ songParts })}
+            options={[
+              ["duets", "Дуэты и фиты"],
+              ["all", "Все песни"],
+              ["off", "Нет"],
             ]}
           />
         </Row>

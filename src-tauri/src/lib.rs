@@ -106,7 +106,11 @@ async fn save_user_lyrics(app: AppHandle, kind: String, text: String) -> Result<
     let payload = LyricsPayload { key, kind, text, source: "user".into() };
     lyrics::cache::store(&state.data_dir, lyrics::cache::USER, &payload);
     *state.lyrics.lock().unwrap() = Some(payload.clone());
+    let synced = payload.kind == "synced";
     let _ = app.emit("lyrics:loaded", Some(payload));
+    if let Some(m) = state.media.lock().unwrap().clone().filter(|_| synced) {
+        lyrics::parts::annotate(app.clone(), m);
+    }
     Ok(())
 }
 
@@ -150,6 +154,7 @@ pub(crate) fn retry(app: &AppHandle) {
     let media = state.media.lock().unwrap().clone();
     if let Some(m) = media {
         lyrics::cache::remove(&state.data_dir, lyrics::cache::FOUND, &m.key);
+        lyrics::parts::forget(app, &m.key);
         lyrics::request(app.clone(), m);
     }
 }
@@ -225,6 +230,7 @@ pub fn run() {
                 media: Mutex::new(None),
                 cover: Mutex::new(None),
                 lyrics: Mutex::new(None),
+                parts: Mutex::new(None),
                 settings: Mutex::new(settings),
                 session: Mutex::new(None),
             });

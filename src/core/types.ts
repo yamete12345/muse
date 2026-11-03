@@ -1,3 +1,5 @@
+import type { PartsMode, PartsPayload } from "./parts";
+
 export interface MediaState {
   key: string;
   title: string;
@@ -60,6 +62,8 @@ export interface Settings {
   updateCheck: boolean;
   /** Covers drift, tilt and catch a highlight while music plays. */
   liveCover: boolean;
+  /** Label song parts and their singers. */
+  songParts: PartsMode;
 }
 
 export interface MonitorInfo {
@@ -83,4 +87,5 @@ export interface Snapshot {
   lyrics: LyricsPayload | null;
   settings: Settings;
   offsetMs: number;
+  parts: PartsPayload | null;
 }

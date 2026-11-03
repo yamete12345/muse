@@ -2,6 +2,7 @@ pub mod cache;
 pub mod genius;
 pub mod lrclib;
 pub mod normalize;
+pub mod parts;
 pub mod search;
 
 use std::time::Duration;
@@ -34,8 +35,12 @@ pub fn request(app: AppHandle, media: MediaState) {
             if state.current_key().as_deref() != Some(p.key.as_str()) {
                 return;
             }
+            let synced = p.kind == "synced";
             *state.lyrics.lock().unwrap() = Some(p.clone());
             let _ = app.emit("lyrics:loaded", Some(p));
+            if synced {
+                parts::annotate(app.clone(), media.clone());
+            }
         };
 
         let own = cache::load(&state.data_dir, cache::USER, &key);

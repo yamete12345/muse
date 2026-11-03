@@ -331,6 +331,8 @@ fn publish_media(app: &AppHandle, state: &AppState, ms: Option<MediaState>, key_
     }
     let _ = app.emit("media:state", &ms);
     if key_changed {
+        // The previous track's parts go now; the new ones arrive with its lyrics.
+        crate::lyrics::parts::clear(app);
         match ms {
             Some(m) if !m.title.is_empty() => {
                 let _ = app.emit("offset:changed", state.offset_for(&m.key));

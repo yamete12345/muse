@@ -145,10 +145,16 @@
   opacity: 1;
 }
 
+/* The fill mask only paints inside a word's box, so the box reaches far
+   enough above and below for the glow (up to about 0.8em at full strength);
+   the negative margin keeps the line spacing as it was. Horizontal room stays
+   small: the fill sweep is measured across it. */
 .lx-w {
   display: inline-block;
-  padding: 0.14em 0.24em;
-  margin: -0.14em -0.24em;
+  padding: 0.8em 0.24em;
+  margin: -0.8em -0.24em;
+  /* The tall boxes overlap the neighbouring lines: clicks go to the line itself. */
+  pointer-events: none;
   transition: transform 0.6s var(--ease-out);
 }
 
@@ -214,4 +220,68 @@
   background: rgb(var(--accent-rgb, var(--text-rgb)));
   opacity: 0.22;
   box-shadow: 0 0 0.6em rgba(var(--glow-rgb), calc(var(--line-glow-a) * var(--glow-k, 1)));
+}
+
+/* Part caption above the first line of a verse or chorus. */
+.lx-label {
+  max-width: min(88%, 22em);
+  margin-bottom: calc(var(--lx-size) * 0.14);
+  font-family: var(--font);
+  font-size: max(11px, calc(var(--lx-size) * 0.3));
+  font-weight: 720;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.75;
+  filter: blur(calc(var(--b, 0px) * var(--blur-k, 1) * 0.6));
+  transition:
+    opacity 0.6s ease,
+    filter 0.7s ease,
+    color 0.5s ease;
+  animation: label-in 0.6s var(--ease-out) backwards;
+}
+
+@keyframes label-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Each solo singer gets a soft tint; shared parts stay neutral. */
+.lx-label[data-voice="0"] {
+  color: rgba(159, 211, 255, 0.9);
+}
+
+.lx-label[data-voice="1"] {
+  color: rgba(255, 179, 199, 0.9);
+}
+
+.lx-label[data-voice="2"] {
+  color: rgba(199, 245, 154, 0.9);
+}
+
+.lx-label[data-voice="3"] {
+  color: rgba(255, 216, 138, 0.9);
+}
+
+.lx-line[data-d="0"] .lx-label {
+  opacity: 1;
+}
+
+.lx-root[data-align="center"] .lx-label {
+  margin-inline: auto;
+  text-align: center;
+}
+
+.lx-root[data-align="right"] .lx-label {
+  margin-left: auto;
+  text-align: right;
+}
+
+.lx-root.is-free .lx-label {
+  filter: none;
 }

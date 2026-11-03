@@ -129,6 +129,38 @@ export class LyricsEngine {
     requestAnimationFrame(() => this.layout(false));
   }
 
+  /**
+   * Puts a small caption ("Куплет 1 · Artist") above the given lines, by item
+   * index; other lines lose theirs. Works on the lines already built.
+   */
+  setLabels(labels: Map<number, { text: string; voice: number }>) {
+    let changed = false;
+    this.views.forEach((v, i) => {
+      const want = labels.get(i);
+      let el = v.el.querySelector<HTMLElement>(":scope > .lx-label");
+      if (!want) {
+        if (el) {
+          el.remove();
+          changed = true;
+        }
+        return;
+      }
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "lx-label";
+        v.el.prepend(el);
+        changed = true;
+      }
+      if (el.textContent !== want.text) {
+        el.textContent = want.text;
+        changed = true;
+      }
+      el.dataset.voice = String(want.voice);
+    });
+    // Labels change line heights: re-measure and let the lines glide.
+    if (changed) requestAnimationFrame(() => this.layout(false));
+  }
+
   setItems(items: Item[]) {
     this.root.replaceChildren();
     this.views = items.map((it) => this.build(it));

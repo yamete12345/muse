@@ -5,6 +5,7 @@ import { useCoverAccent } from "../core/appearance";
 import { buildItems, parseLrc, type Item } from "../core/lrc";
 import { LyricsEngine } from "../core/lyricsEngine";
 import { clock, useStore } from "../core/store";
+import { partLabels, type PartLabel } from "../core/parts";
 import { engineTuning, lyricVars, type LyricStyle } from "../core/style";
 import { openPanel } from "../core/ui";
 import { NoteIcon, PenIcon, SearchIcon } from "./Icons";
@@ -23,10 +24,12 @@ interface CanvasProps {
   hidden?: boolean;
   /** Pause the engine, e.g. while another tab covers it. */
   suspended?: boolean;
+  /** Part captions by item index. */
+  labels?: Map<number, PartLabel>;
 }
 
 /** Hosts a LyricsEngine and keeps it in sync with the appearance settings. */
-export function LyricsCanvas({ items, time, look, className, center, interactive, hidden, suspended }: CanvasProps) {
+export function LyricsCanvas({ items, time, look, className, center, interactive, hidden, suspended, labels }: CanvasProps) {
   const root = useRef<HTMLDivElement>(null);
   const engine = useRef<LyricsEngine | null>(null);
   const timeRef = useRef(time);
@@ -46,6 +49,7 @@ export function LyricsCanvas({ items, time, look, className, center, interactive
   useEffect(() => engine.current?.configure(tuning), [tuning, center, interactive]);
   useEffect(() => engine.current?.setItems(items), [items, center, interactive]);
   useEffect(() => engine.current?.setSuspended(!!suspended), [suspended, center, interactive]);
+  useEffect(() => engine.current?.setLabels(labels ?? new Map()), [labels, items, center, interactive]);
 
   return <div ref={root} className={className} data-align={look.align} style={{ visibility: hidden ? "hidden" : "visible" }} />;
 }
@@ -68,6 +72,10 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
 
   const text = synced ? current!.text : "";
   const items = useMemo(() => (text ? buildItems(parseLrc(text)) : []), [text]);
+  // Who sings which part; the widget is too small for captions.
+  const parts = useStore((s) => (s.parts && s.parts.key === key ? s.parts : null));
+  const partsMode = useStore((s) => s.settings.songParts);
+  const labels = useMemo(() => (mode === "widget" ? undefined : partLabels(items, parts, partsMode)), [items, parts, partsMode, mode]);
   const vars = useMemo(() => ({ ...lyricVars(look, accent), ...style }), [look, accent, style]);
 
   let status: React.ReactNode = null;
@@ -116,6 +124,7 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
         interactive={isMain}
         hidden={!synced}
         suspended={suspended}
+        labels={labels}
       />
       {!synced && status}
     </div>
