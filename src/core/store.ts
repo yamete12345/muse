@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 import { PlaybackClock } from "./clock";
+import type { PartsPayload } from "./parts";
 import type { CoverPayload, LyricsPayload, MediaState, Settings, Snapshot } from "./types";
 
 export interface AppStore {
@@ -12,6 +13,8 @@ export interface AppStore {
   lyrics: LyricsPayload | null;
   settings: Settings;
   offsetMs: number;
+  /** Who sings which part of the playing track, when known. */
+  parts: PartsPayload | null;
 }
 
 const defaultSettings: Settings = {
@@ -37,6 +40,7 @@ const defaultSettings: Settings = {
   closeToTray: true,
   updateCheck: true,
   liveCover: true,
+  songParts: "duets",
 };
 
 /** Applies a settings change locally right away; Rust confirms via `settings:changed`. */
@@ -47,7 +51,7 @@ export function patchSettingsLocal(patch: Partial<Settings>) {
 }
 let localUntil = 0;
 
-let state: AppStore = { ready: false, media: null, cover: null, lyrics: null, settings: defaultSettings, offsetMs: 0 };
+let state: AppStore = { ready: false, media: null, cover: null, lyrics: null, settings: defaultSettings, offsetMs: 0, parts: null };
 const listeners = new Set<() => void>();
 
 export const clock = new PlaybackClock();
@@ -87,6 +91,7 @@ export async function initStore() {
       if (e.payload.key === state.media?.key) set({ cover: e.payload.dataUrl || null });
     }),
     listen<LyricsPayload | null>("lyrics:loaded", (e) => set({ lyrics: e.payload })),
+    listen<PartsPayload | null>("lyrics:parts", (e) => set({ parts: e.payload })),
     listen<Settings>("settings:changed", (e) => {
       if (performance.now() < localUntil) return;
       set({ settings: e.payload });
@@ -107,5 +112,6 @@ export async function initStore() {
     lyrics: snap.lyrics,
     settings: snap.settings,
     offsetMs: snap.offsetMs,
+    parts: snap.parts,
   });
 }

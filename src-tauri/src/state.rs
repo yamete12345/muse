@@ -51,6 +51,7 @@ pub struct Snapshot {
     pub lyrics: Option<LyricsPayload>,
     pub settings: Settings,
     pub offset_ms: i64,
+    pub parts: Option<crate::lyrics::parts::PartsPayload>,
 }
 
 pub struct AppState {
@@ -59,6 +60,7 @@ pub struct AppState {
     pub media: Mutex<Option<MediaState>>,
     pub cover: Mutex<Option<CoverPayload>>,
     pub lyrics: Mutex<Option<LyricsPayload>>,
+    pub parts: Mutex<Option<crate::lyrics::parts::PartsPayload>>,
     pub settings: Mutex<Settings>,
     pub offsets: Mutex<HashMap<String, i64>>,
     pub session: Mutex<Option<GlobalSystemMediaTransportControlsSession>>,
@@ -82,6 +84,7 @@ impl AppState {
             lyrics: self.lyrics.lock().unwrap().clone(),
             settings: self.settings.lock().unwrap().clone(),
             offset_ms,
+            parts: self.parts.lock().unwrap().clone(),
         }
     }
 }

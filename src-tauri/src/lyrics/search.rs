@@ -151,6 +151,13 @@ pub async fn choose(app: &AppHandle, id: usize) -> Result<LyricsPayload, String>
     cache::store(&state.data_dir, cache::FOUND, &p);
     *state.lyrics.lock().unwrap() = Some(p.clone());
     let _ = app.emit("lyrics:loaded", Some(p.clone()));
+    if p.kind == "synced" {
+        if let Some(m) = state.media.lock().unwrap().clone() {
+            super::parts::annotate(app.clone(), m);
+        }
+    } else {
+        super::parts::clear(app);
+    }
     crate::log_info!("lyrics", "picked {} lyrics ({}) for {key}", p.source, p.kind);
     Ok(p)
 }

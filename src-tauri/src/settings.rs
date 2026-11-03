@@ -53,6 +53,8 @@ pub struct Settings {
     pub update_check: bool,
     /// Covers drift, tilt and catch a highlight while music plays.
     pub live_cover: bool,
+    /// Label song parts and their singers: off, duets or all.
+    pub song_parts: String,
 }
 
 impl Default for Settings {
@@ -83,6 +85,7 @@ impl Default for Settings {
             close_to_tray: true,
             update_check: true,
             live_cover: true,
+            song_parts: "duets".into(),
         }
     }
 }
@@ -157,6 +160,9 @@ pub fn update(app: &AppHandle, patch: serde_json::Value) -> Result<Settings, Str
     }
     if old.wallpaper_enabled != new.wallpaper_enabled || old.wallpaper_monitors != new.wallpaper_monitors {
         crate::wallpaper::sync(app);
+    }
+    if old.song_parts != new.song_parts {
+        crate::lyrics::parts::refresh(app);
     }
     crate::tray::refresh(app);
     let _ = app.emit("settings:changed", &new);
