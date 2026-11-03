@@ -12,7 +12,7 @@
 }
 
 .sw.is-open {
-  animation: sw-in 0.6s var(--ease-spring) both;
+  animation: sw-in 0.6s var(--ease-spring) backwards;
 }
 
 .sw.is-closing {
@@ -83,7 +83,7 @@
   flex: none;
   width: 236px;
   display: flex;
-  animation: rail-in 0.7s var(--ease-spring) both;
+  animation: rail-in 0.7s var(--ease-spring) backwards;
 }
 
 .sw-nav-inner {
@@ -235,7 +235,7 @@
   font-size: 28px;
   font-weight: 790;
   letter-spacing: -0.025em;
-  animation: item-in 0.5s var(--ease-out) both;
+  animation: item-in 0.5s var(--ease-out) backwards;
 }
 
 
@@ -266,7 +266,7 @@
 
 /* Sections rise in one after another when a tab opens. */
 .sw-content > * {
-  animation: item-in 0.55s var(--ease-out) both;
+  animation: item-in 0.55s var(--ease-out) backwards;
 }
 
 .sw-content > :nth-child(2) { animation-delay: 0.04s; }
@@ -639,7 +639,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  animation: item-in 0.5s var(--ease-out) both;
+  animation: item-in 0.5s var(--ease-out) backwards;
 }
 
 .st-reset {
@@ -904,7 +904,7 @@
   gap: 10px;
   padding: 12px;
   cursor: default;
-  animation: item-in 0.35s var(--ease-out) both;
+  animation: item-in 0.35s var(--ease-out) backwards;
 }
 
 .st-preset-new.is-naming:hover {
@@ -957,7 +957,7 @@
 .sw-update-status {
   font-size: 14px;
   font-weight: 580;
-  animation: item-in 0.4s var(--ease-out) both;
+  animation: item-in 0.4s var(--ease-out) backwards;
 }
 
 .sw-update.is-latest .sw-update-status::before {
@@ -1060,7 +1060,7 @@
   right: calc(var(--rail-space) - var(--rail-gap) + 10px);
   z-index: 9;
   width: min(360px, calc(100% - var(--rail-space) - 40px));
-  animation: pane-in 0.6s var(--ease-spring) both;
+  animation: pane-in 0.6s var(--ease-spring) backwards;
 }
 
 .update-toast-inner {
