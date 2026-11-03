@@ -48,6 +48,7 @@
     transform 0.45s var(--ease-spring),
     background-color 0.3s ease,
     box-shadow 0.3s ease,
+    opacity 0.5s ease,
     --mx 0.22s var(--ease-out),
     --my 0.22s var(--ease-out),
     --lit 0.45s ease;
