@@ -52,10 +52,14 @@
   transform: scale(var(--u-inactive-scale, 0.955));
   opacity: var(--unsung);
   filter: blur(calc(var(--b, 0px) * var(--blur-k, 1)));
+  /* A line that stops being active fades its color back together with its
+     brightness: snapping to white while still bright would flash. */
   transition:
     transform 0.8s var(--ease-out),
     filter 0.7s ease,
-    opacity 0.7s ease;
+    opacity 0.7s ease,
+    color 0.7s ease,
+    text-shadow 0.7s ease;
 }
 
 .lx-item[data-d="1"] { --b: 1.9px; }
@@ -71,11 +75,13 @@
   opacity: 1;
   color: rgb(var(--accent-rgb, var(--text-rgb)));
   text-shadow: 0 0 0.55em rgba(var(--glow-rgb), calc(var(--line-glow-a) * var(--glow-k, 1)));
-  /* Becoming active must not fade: unsung words already match dim lines. */
+  /* Becoming active must not fade: unsung words already match dim lines.
+     The color switches at once too, or the line starts out bright white. */
   transition:
     transform 0.8s var(--ease-spring),
     filter 0.45s ease,
-    color 0.4s ease,
+    text-shadow 0.45s ease,
+    color 0s,
     opacity 0s;
 }
 
@@ -84,6 +90,8 @@
   transition:
     transform 0.8s var(--ease-spring),
     filter 0.45s ease,
+    text-shadow 0.35s ease,
+    color 0s,
     opacity 0.35s ease;
 }
 
