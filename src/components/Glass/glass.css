@@ -1,0 +1,109 @@
+.lg {
+  position: relative;
+  border-radius: var(--lg-r);
+  isolation: isolate;
+  background: var(--glass-tint);
+  box-shadow:
+    0 10px 34px -12px var(--glass-shadow),
+    0 2px 6px -2px var(--glass-shadow-near),
+    inset 0 1px 0.5px var(--glass-rim-top),
+    inset 0 -1px 0.5px var(--glass-rim-bottom);
+  color: rgb(var(--text-rgb));
+  transition:
+    transform 0.45s var(--ease-spring),
+    background-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.lg-refract {
+  backdrop-filter: var(--lg-backdrop, blur(14px)) brightness(var(--glass-brightness));
+}
+
+.lg-simple {
+  backdrop-filter: blur(18px) saturate(170%) brightness(var(--glass-brightness));
+}
+
+/* Specular rim: a gradient border that is brighter where light hits. */
+.lg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    var(--glass-light-angle),
+    var(--glass-edge-strong),
+    var(--glass-edge-weak) 32%,
+    transparent 52%,
+    var(--glass-edge-weak) 78%,
+    var(--glass-edge-mid)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Soft sheen on top plus a highlight that follows the pointer. */
+.lg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 80% at var(--mx, 30%) var(--my, -20%), var(--glass-sheen-hot), transparent 55%),
+    linear-gradient(180deg, var(--glass-sheen), transparent 45%);
+  opacity: 0.7;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+  z-index: 1;
+}
+
+.lg > * {
+  position: relative;
+  z-index: 2;
+}
+
+.lg-button {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lg-button:hover,
+.lg-pill.lg-hover:hover {
+  background: var(--glass-tint-hover);
+}
+
+.lg-button:hover::after {
+  opacity: 1;
+}
+
+.lg-button:active {
+  transform: scale(0.92);
+  transition-duration: 0.12s;
+}
+
+.lg-button:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(var(--text-rgb), 0.5),
+    inset 0 1px 0.5px var(--glass-rim-top);
+}
+
+.lg-button.is-active {
+  background: var(--glass-tint-active);
+}
+
+.lg-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none;
+}

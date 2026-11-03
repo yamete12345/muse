@@ -1,0 +1,162 @@
+.lx-root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  contain: strict;
+  --lx-size: 48px;
+  --lx-pad-x: 64px;
+  --blur-k: 1;
+}
+
+.lx-root.lx-enter {
+  animation: lx-enter 0.9s var(--ease-out) both;
+}
+
+@keyframes lx-enter {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+.lx-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  padding: 0 var(--lx-pad-r, var(--lx-pad-x)) 0 var(--lx-pad-x);
+  will-change: transform;
+}
+
+.lx-line {
+  padding-block: calc(var(--lx-size) * 0.3);
+}
+
+.lx-text {
+  max-width: min(88%, 22em);
+  font-size: var(--lx-size);
+  font-weight: 760;
+  line-height: 1.17;
+  letter-spacing: -0.022em;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  transform-origin: 0 50%;
+  transform: scale(0.955);
+  opacity: var(--unsung);
+  filter: blur(calc(var(--b, 0px) * var(--blur-k)));
+  transition:
+    transform 0.8s var(--ease-out),
+    filter 0.7s ease,
+    opacity 0.7s ease;
+}
+
+.lx-item[data-d="1"] { --b: 1.9px; }
+.lx-item[data-d="2"] { --b: 2.9px; }
+.lx-item[data-d="3"] { --b: 3.7px; }
+.lx-item[data-d="4"] { --b: 4.3px; }
+.lx-item[data-d="5"],
+.lx-item[data-d="6"],
+.lx-item[data-d="9"] { --b: 4.8px; }
+
+.lx-line[data-d="0"] .lx-text {
+  transform: none;
+  opacity: 1;
+  text-shadow: 0 0 0.55em var(--line-glow);
+  /* Becoming active must not fade: unsung words already match dim lines. */
+  transition:
+    transform 0.8s var(--ease-spring),
+    filter 0.45s ease,
+    opacity 0s;
+}
+
+/* Hover target for click-to-seek. */
+.lx-root.is-interactive .lx-line {
+  cursor: pointer;
+}
+
+.lx-root.is-interactive .lx-line::before {
+  content: "";
+  position: absolute;
+  inset: 2px calc(var(--lx-pad-x) - 18px);
+  border-radius: 18px;
+  background: rgba(var(--text-rgb), 0.07);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.lx-root.is-interactive .lx-line:hover::before {
+  opacity: 1;
+}
+
+.lx-w {
+  display: inline-block;
+  padding: 0.14em 0.24em;
+  margin: -0.14em -0.24em;
+  transition: transform 0.6s var(--ease-out);
+}
+
+/* Only the active line carries masks: everything else is a plain dim text. */
+.lx-line[data-d="0"] .lx-w {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    #000 calc(var(--q, 1) * 124% - 22%),
+    rgba(0, 0, 0, var(--unsung)) calc(var(--q, 1) * 124% + 2%)
+  );
+  mask-image: linear-gradient(
+    90deg,
+    #000 calc(var(--q, 1) * 124% - 22%),
+    rgba(0, 0, 0, var(--unsung)) calc(var(--q, 1) * 124% + 2%)
+  );
+  transform: translateY(calc(var(--q, 0) * -0.035em)) scale(calc(1 + var(--e, 0) * 0.045));
+  transition: none;
+}
+
+.lx-c {
+  display: inline-block;
+  white-space: pre;
+}
+
+/* Free scroll: everything sharp and readable. */
+.lx-root.is-free .lx-text {
+  filter: none;
+  opacity: 0.62;
+  transform: none;
+}
+
+.lx-root.is-free .lx-line[data-d="0"] .lx-text {
+  opacity: 1;
+}
+
+/* Interlude dots */
+.lx-gap {
+  height: calc(var(--lx-size) * 1.55);
+  display: flex;
+  align-items: center;
+}
+
+.lx-dots {
+  display: flex;
+  gap: calc(var(--lx-size) * 0.24);
+  transform-origin: calc(var(--lx-size) * 0.5) 50%;
+  transform: scale(0);
+  opacity: 0;
+  transition:
+    transform 0.5s var(--ease-out),
+    opacity 0.4s ease;
+}
+
+.lx-gap[data-d="0"] .lx-dots {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.lx-dot {
+  width: calc(var(--lx-size) * 0.3);
+  height: calc(var(--lx-size) * 0.3);
+  border-radius: 50%;
+  background: rgb(var(--text-rgb));
+  opacity: 0.22;
+  box-shadow: 0 0 0.6em var(--line-glow);
+}
