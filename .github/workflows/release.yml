@@ -1,4 +1,4 @@
-# Builds the Windows installer and attaches it to a draft GitHub release
+# Builds the Windows installer and publishes it as a GitHub release
 # whenever a version tag (v0.2.0, v1.0.0, ...) is pushed.
 name: Release
 
@@ -38,4 +38,4 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "MUSE ${{ github.ref_name }}"
           releaseBody: "Установщик для Windows 10/11: скачайте MUSE_*_x64-setup.exe ниже."
-          releaseDraft: true
+          releaseDraft: false
