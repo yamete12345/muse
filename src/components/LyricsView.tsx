@@ -7,7 +7,7 @@ import { LyricsEngine } from "../core/lyricsEngine";
 import { clock, useStore } from "../core/store";
 import { engineTuning, lyricVars, type LyricStyle } from "../core/style";
 import { openPanel } from "../core/ui";
-import { NoteIcon, PenIcon } from "./Icons";
+import { NoteIcon, PenIcon, SearchIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { PlainLyrics } from "./PlainLyrics";
 
@@ -88,6 +88,9 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
           <div className="status-actions">
             <button className="link-button link-button-primary" onClick={() => openPanel("editor")}>
               <PenIcon size={15} /> Написать самому
+            </button>
+            <button className="link-button" onClick={() => openPanel("search")}>
+              <SearchIcon size={15} /> Найти вручную
             </button>
             <button className="link-button" onClick={retryLyrics}>
               Поискать ещё раз

@@ -27,7 +27,7 @@ pub fn sync(app: &AppHandle) {
         None => match create(app, settings.widget_bounds) {
             Ok(w) => w,
             Err(e) => {
-                eprintln!("widget: {e}");
+                crate::log_error!("widget", "could not create the window: {e}");
                 return;
             }
         },

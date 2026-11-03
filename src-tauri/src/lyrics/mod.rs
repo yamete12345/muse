@@ -2,6 +2,7 @@ pub mod cache;
 pub mod genius;
 pub mod lrclib;
 pub mod normalize;
+pub mod search;
 
 use std::time::Duration;
 
@@ -9,11 +10,11 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::state::{AppState, LyricsPayload, MediaState};
 
-fn payload(key: &str, kind: &str, text: String, source: &str) -> LyricsPayload {
+pub(crate) fn payload(key: &str, kind: &str, text: String, source: &str) -> LyricsPayload {
     LyricsPayload { key: key.into(), kind: kind.into(), text, source: source.into() }
 }
 
-fn from_record(key: &str, r: lrclib::Record) -> LyricsPayload {
+pub(crate) fn from_record(key: &str, r: lrclib::Record) -> LyricsPayload {
     if let Some(s) = r.synced_lyrics.clone().filter(|_| r.has_synced()) {
         payload(key, "synced", s, "lrclib")
     } else if r.instrumental {
@@ -53,6 +54,7 @@ pub fn request(app: AppHandle, media: MediaState) {
 
         let result = find(&state.http, &media).await;
         let p = result.unwrap_or_else(|| payload(&key, "none", String::new(), ""));
+        crate::log_info!("lyrics", "{} - {}: {} from {}", media.artist, media.title, p.kind, if p.source.is_empty() { "nowhere" } else { &p.source });
         if p.kind != "none" {
             cache::store(&state.data_dir, cache::FOUND, &p);
         }

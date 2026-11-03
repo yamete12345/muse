@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 /** Which side pane of the main window is open. */
-export type Panel = "editor" | null;
+export type Panel = "editor" | "search" | null;
 
 /** Which tab the main window shows: the lyrics or the settings page. */
 export type View = "lyrics" | "settings";

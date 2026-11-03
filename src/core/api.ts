@@ -47,4 +47,6 @@ export function updateSettings(patch: Partial<Settings>) {
 export const setWidgetGeometry = (g: { x: number; y: number; width: number; height: number }) =>
   quiet(invoke("set_widget_geometry", { x: g.x, y: g.y, width: g.width, height: g.height }));
 export const getWidgetGeometry = () => invoke<WidgetGeometry | null>("get_widget_geometry").catch(() => null);
+export const openLog = () => quiet(invoke("open_log"));
+export const openLogFolder = () => quiet(invoke("open_log_folder"));
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors").catch(() => [] as MonitorInfo[]);

@@ -151,6 +151,13 @@ export const NoteIcon = (p: P) => (
   </svg>
 );
 
+export const SearchIcon = (p: P) => (
+  <svg {...stroke(p)}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m20 20-4.4-4.4" />
+  </svg>
+);
+
 export const DownloadIcon = (p: P) => (
   <svg {...stroke(p)}>
     <path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" />

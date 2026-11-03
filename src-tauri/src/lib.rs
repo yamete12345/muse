@@ -1,3 +1,5 @@
+#[macro_use]
+mod logger;
 mod lyrics;
 mod media;
 mod settings;
@@ -38,6 +40,39 @@ async fn set_widget_geometry(app: AppHandle, x: f64, y: f64, width: f64, height:
 #[tauri::command]
 async fn get_widget_geometry(app: AppHandle) -> Option<widget::Geometry> {
     widget::geometry(&app)
+}
+
+#[tauri::command]
+async fn search_lyrics(app: AppHandle, query: String) -> Result<Vec<lyrics::search::Candidate>, String> {
+    lyrics::search::search(&app, &query).await
+}
+
+#[tauri::command]
+async fn choose_lyrics(app: AppHandle, id: usize) -> Result<LyricsPayload, String> {
+    lyrics::search::choose(&app, id).await
+}
+
+/// Errors from the pages end up in the same log as Rust's.
+#[tauri::command]
+fn log_frontend(level: String, message: String) {
+    let level = if level == "error" { "ERROR" } else { "WARN" };
+    logger::write(level, "page", &message.chars().take(2000).collect::<String>());
+}
+
+#[tauri::command]
+fn open_log(app: AppHandle) {
+    let dir = app.state::<AppState>().data_dir.clone();
+    let path = logger::file_path(&dir);
+    if !path.exists() {
+        let _ = std::fs::write(&path, "");
+    }
+    updater::shell_open(&path.to_string_lossy());
+}
+
+#[tauri::command]
+fn open_log_folder(app: AppHandle) {
+    let dir = app.state::<AppState>().data_dir.clone();
+    updater::shell_open(&logger::dir(&dir).to_string_lossy());
 }
 
 #[tauri::command]
@@ -85,7 +120,7 @@ async fn delete_user_lyrics(app: AppHandle) {
     }
 }
 
-fn change_offset(app: &AppHandle, f: impl FnOnce(i64) -> i64) -> Option<i64> {
+pub(crate) fn change_offset(app: &AppHandle, f: impl FnOnce(i64) -> i64) -> Option<i64> {
     let state = app.state::<AppState>();
     let key = state.current_key()?;
     let value = {
@@ -100,6 +135,7 @@ fn change_offset(app: &AppHandle, f: impl FnOnce(i64) -> i64) -> Option<i64> {
         v
     };
     let _ = app.emit("offset:changed", value);
+    tray::refresh(app);
     Some(value)
 }
 
@@ -108,14 +144,19 @@ fn set_offset(app: AppHandle, ms: i64) -> i64 {
     change_offset(&app, |_| ms).unwrap_or(0)
 }
 
-#[tauri::command]
-fn retry_lyrics(app: AppHandle) {
+/// Forgets the cached lyrics of the playing track and looks them up again.
+pub(crate) fn retry(app: &AppHandle) {
     let state = app.state::<AppState>();
     let media = state.media.lock().unwrap().clone();
     if let Some(m) = media {
         lyrics::cache::remove(&state.data_dir, lyrics::cache::FOUND, &m.key);
         lyrics::request(app.clone(), m);
     }
+}
+
+#[tauri::command]
+fn retry_lyrics(app: AppHandle) {
+    retry(&app);
 }
 
 fn shortcuts() -> [(Shortcut, &'static str); 3] {
@@ -166,6 +207,8 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             migrate_data_dir(&data_dir);
             std::fs::create_dir_all(&data_dir)?;
+            logger::init(&data_dir);
+            log_info!("app", "MUSE {} starting", env!("CARGO_PKG_VERSION"));
 
             let mut settings = settings::load(&data_dir);
             settings.autostart = app.autolaunch().is_enabled().unwrap_or(false);
@@ -231,6 +274,11 @@ pub fn run() {
             check_update,
             install_update,
             open_link,
+            search_lyrics,
+            choose_lyrics,
+            log_frontend,
+            open_log,
+            open_log_folder,
             media::commands::media_toggle,
             media::commands::media_next,
             media::commands::media_prev,
