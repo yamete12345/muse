@@ -1,56 +1,86 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 
-import { seekLyrics, retryLyrics } from "../core/api";
-import { buildItems, parseLrc } from "../core/lrc";
+import { retryLyrics, seekLyrics } from "../core/api";
+import { useCoverAccent } from "../core/appearance";
+import { buildItems, parseLrc, type Item } from "../core/lrc";
 import { LyricsEngine } from "../core/lyricsEngine";
 import { clock, useStore } from "../core/store";
+import { engineTuning, lyricVars, type LyricStyle } from "../core/style";
 import { openPanel } from "../core/ui";
 import { NoteIcon, PenIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { PlainLyrics } from "./PlainLyrics";
 
-interface Props {
-  mode: "main" | "widget";
-  style?: CSSProperties;
+export type LyricsMode = "main" | "widget" | "wallpaper";
+
+interface CanvasProps {
+  items: Item[];
+  time: () => number;
+  look: LyricStyle;
+  className: string;
+  center?: boolean;
+  interactive?: boolean;
+  hidden?: boolean;
 }
 
-export function LyricsView({ mode, style }: Props) {
+/** Hosts a LyricsEngine and keeps it in sync with the appearance settings. */
+export function LyricsCanvas({ items, time, look, className, center, interactive, hidden }: CanvasProps) {
   const root = useRef<HTMLDivElement>(null);
   const engine = useRef<LyricsEngine | null>(null);
-  const hasMedia = useStore((s) => !!s.media && !!s.media.title);
-  const lyrics = useStore((s) => s.lyrics);
-  const key = useStore((s) => s.media?.key);
-  const current = lyrics && lyrics.key === key ? lyrics : null;
-  const synced = current?.kind === "synced";
+  const timeRef = useRef(time);
+  timeRef.current = time;
 
   useEffect(() => {
-    const e = new LyricsEngine(root.current!, () => clock.now(), {
-      anchor: mode === "main" ? 0.3 : 0.5,
-      center: mode === "widget",
-      interactive: mode === "main",
+    const e = new LyricsEngine(root.current!, () => timeRef.current(), {
+      center,
+      interactive: !!interactive,
       onSeek: seekLyrics,
     });
     engine.current = e;
     return () => e.destroy();
-  }, [mode]);
+  }, [center, interactive]);
+
+  const tuning = useMemo(() => engineTuning(look), [look]);
+  useEffect(() => engine.current?.configure(tuning), [tuning, center, interactive]);
+  useEffect(() => engine.current?.setItems(items), [items, center, interactive]);
+
+  return <div ref={root} className={className} data-align={look.align} style={{ visibility: hidden ? "hidden" : "visible" }} />;
+}
+
+interface Props {
+  mode: LyricsMode;
+  look: LyricStyle;
+  style?: CSSProperties;
+}
+
+export function LyricsView({ mode, look, style }: Props) {
+  const hasMedia = useStore((s) => !!s.media && !!s.media.title);
+  const lyrics = useStore((s) => s.lyrics);
+  const key = useStore((s) => s.media?.key);
+  const accent = useCoverAccent();
+  const current = lyrics && lyrics.key === key ? lyrics : null;
+  const synced = current?.kind === "synced";
+  const isMain = mode === "main";
 
   const text = synced ? current!.text : "";
   const items = useMemo(() => (text ? buildItems(parseLrc(text)) : []), [text]);
-  useEffect(() => engine.current?.setItems(items), [items]);
+  const vars = useMemo(() => ({ ...lyricVars(look, accent), ...style }), [look, accent, style]);
 
   let status: React.ReactNode = null;
-  if (!hasMedia) {
+  if (mode === "wallpaper") {
+    status = null;
+  } else if (!hasMedia) {
     status = (
-      <Status title="Ничего не играет" hint={mode === "main" ? "Включите музыку в любом плеере" : undefined}>
-        {mode === "main" && <Logo size={56} className="status-logo" />}
+      <Status title="Ничего не играет" hint={isMain ? "Включите музыку в любом плеере" : undefined}>
+        {isMain && <Logo size={56} className="status-logo" />}
       </Status>
     );
   } else if (!current || current.kind === "loading") {
     status = <Status title="Ищем текст" loading />;
   } else if (current.kind === "none") {
     status = (
-      <Status title="Текст не найден" hint={mode === "main" ? "Его нет ни в lrclib, ни в Genius" : undefined}>
-        {mode === "main" && (
+      <Status title="Текст не найден" hint={isMain ? "Его нет ни в lrclib, ни в Genius" : undefined}>
+        {isMain && (
           <div className="status-actions">
             <button className="link-button link-button-primary" onClick={() => openPanel("editor")}>
               <PenIcon size={15} /> Написать самому
@@ -65,17 +95,20 @@ export function LyricsView({ mode, style }: Props) {
   } else if (current.kind === "instrumental") {
     status = <Status title="Инструментальная композиция" icon />;
   } else if (current.kind === "plain") {
-    status =
-      mode === "main" ? (
-        <PlainLyrics text={current.text} source={current.source} />
-      ) : (
-        <Status title="Текст без синхронизации" />
-      );
+    status = isMain ? <PlainLyrics text={current.text} source={current.source} /> : <Status title="Текст без синхронизации" />;
   }
 
   return (
-    <div className={`lx-host lx-host-${mode}`} style={style}>
-      <div ref={root} className={`lx-root lx-${mode}`} style={{ visibility: synced ? "visible" : "hidden" }} />
+    <div className={`lx-host lx-host-${mode}`} style={vars}>
+      <LyricsCanvas
+        items={items}
+        time={() => clock.now()}
+        look={look}
+        className={`lx-root lx-${mode}`}
+        center={mode === "widget"}
+        interactive={isMain}
+        hidden={!synced}
+      />
       {!synced && status}
     </div>
   );

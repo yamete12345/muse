@@ -1,14 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-import { updateSettings } from "../core/api";
+import { openSettings, updateSettings } from "../core/api";
 import { useStore } from "../core/store";
 import { openPanel, togglePanel, usePanel } from "../core/ui";
 import { Glass } from "./Glass/Glass";
 import { CloseIcon, GearIcon, MaximizeIcon, MinimizeIcon, MoonIcon, PenIcon, SunIcon, WidgetIcon } from "./Icons";
 import { LyricsEditor } from "./LyricsEditor";
 import { Logo } from "./Logo";
-import { SettingsContent } from "./SettingsPanel";
 
 const win = getCurrentWindow();
 
@@ -45,7 +44,7 @@ export function Sidebar({ light }: { light: boolean }) {
             <span className="rail-sep" />
 
             <div className="rail-group">
-              <RailButton label="Настройки" active={panel === "settings"} onClick={() => togglePanel("settings")}>
+              <RailButton label="Настройки и оформление" onClick={openSettings}>
                 <GearIcon size={19} />
               </RailButton>
               <RailButton label="Свой текст и тайминги" active={panel === "editor"} onClick={() => togglePanel("editor")}>
@@ -72,9 +71,6 @@ export function Sidebar({ light }: { light: boolean }) {
         </Glass>
       </aside>
 
-      <Pane open={panel === "settings"} title="Настройки">
-        <SettingsContent />
-      </Pane>
       <Pane open={panel === "editor"} title="Свой текст" wide>
         <LyricsEditor />
       </Pane>

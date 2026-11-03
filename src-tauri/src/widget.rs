@@ -1,7 +1,9 @@
 //! Desktop widget: a transparent window that lives on the wallpaper layer.
 
 use tauri::window::{Effect, EffectsBuilder};
-use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+};
 use windows::core::w;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetWindowLongPtrW, GWLP_HWNDPARENT};
@@ -32,10 +34,44 @@ pub fn sync(app: &AppHandle) {
         },
     };
 
-    // Locked: clicks fall through to the desktop. Edit mode: drag and resize.
-    let _ = win.set_ignore_cursor_events(!settings.widget_edit);
+    // Locked + click-through: clicks fall through. Edit mode: drag and resize.
+    let interactive = settings.widget_edit || !settings.widget_click_through;
+    let _ = win.set_ignore_cursor_events(!interactive);
     let effects = settings.widget_acrylic.then(|| EffectsBuilder::new().effect(Effect::Acrylic).build());
     let _ = win.set_effects(effects);
+    set_layer(&win, settings.widget_on_top);
+}
+
+fn set_layer(win: &WebviewWindow, on_top: bool) {
+    if on_top {
+        let _ = win.set_always_on_bottom(false);
+        let _ = win.set_always_on_top(true);
+        set_owner(win, false);
+    } else {
+        let _ = win.set_always_on_top(false);
+        let _ = win.set_always_on_bottom(true);
+        set_owner(win, true);
+    }
+}
+
+/// Resizes the widget (logical pixels) and remembers the new bounds.
+pub fn resize(app: &AppHandle, width: f64, height: f64) {
+    let Some(win) = app.get_webview_window(LABEL) else { return };
+    let _ = win.set_size(LogicalSize::new(width.clamp(200.0, 2400.0), height.clamp(100.0, 1600.0)));
+    if let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) {
+        let state = app.state::<AppState>();
+        let mut s = state.settings.lock().unwrap();
+        s.widget_bounds = Some([pos.x, pos.y, size.width as i32, size.height as i32]);
+        crate::settings::save(&state.data_dir, &s);
+    }
+}
+
+/// Current widget size in logical pixels.
+pub fn size(app: &AppHandle) -> Option<[f64; 2]> {
+    let win = app.get_webview_window(LABEL)?;
+    let scale = win.scale_factor().ok()?;
+    let s = win.outer_size().ok()?.to_logical::<f64>(scale);
+    Some([s.width, s.height])
 }
 
 fn create(app: &AppHandle, bounds: Option<[i32; 4]>) -> tauri::Result<WebviewWindow> {
@@ -69,21 +105,19 @@ fn create(app: &AppHandle, bounds: Option<[i32; 4]>) -> tauri::Result<WebviewWin
         }
     }
 
-    pin_to_desktop(&win);
     let _ = win.show();
     Ok(win)
 }
 
-/// Makes Progman the owner window. Owned windows stay above their owner, so the
-/// widget survives "Show desktop" (Win+D) while always-on-bottom keeps it
-/// beneath regular windows.
-fn pin_to_desktop(win: &WebviewWindow) {
+/// With `pinned`, makes Progman the owner window. Owned windows stay above their
+/// owner, so the widget survives "Show desktop" (Win+D) while always-on-bottom
+/// keeps it beneath regular windows.
+fn set_owner(win: &WebviewWindow, pinned: bool) {
     let Ok(hwnd) = win.hwnd() else { return };
     let hwnd = HWND(hwnd.0 as _);
     unsafe {
-        if let Ok(progman) = FindWindowW(w!("Progman"), None) {
-            SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, progman.0 as isize);
-        }
+        let owner = if pinned { FindWindowW(w!("Progman"), None).map(|p| p.0 as isize).unwrap_or(0) } else { 0 };
+        SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, owner);
     }
 }
 

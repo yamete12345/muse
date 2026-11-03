@@ -16,9 +16,25 @@ pub struct Settings {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub widget_edit: bool,
     pub widget_acrylic: bool,
-    pub widget_font_size: u32,
+    /// Above all windows instead of on the wallpaper layer.
+    pub widget_on_top: bool,
+    /// Clicks pass through the widget to whatever is below.
+    pub widget_click_through: bool,
+    /// Widget appearance follows the main window's lyrics style.
+    pub widget_linked: bool,
     /// Physical pixels: x, y, width, height.
     pub widget_bounds: Option<[i32; 4]>,
+    /// Live wallpaper: the lyrics view embedded behind the desktop icons.
+    pub wallpaper_enabled: bool,
+    /// Index into the monitor list; -1 is the primary monitor.
+    pub wallpaper_monitor: i32,
+    /// Pause animation while a maximized/fullscreen window hides the desktop.
+    pub wallpaper_pause_covered: bool,
+    pub wallpaper_linked: bool,
+    /// Appearance blobs owned by the frontend; Rust only stores them.
+    pub main_style: serde_json::Value,
+    pub widget_style: serde_json::Value,
+    pub wallpaper_style: serde_json::Value,
     pub simple_glass: bool,
     pub bg_fps: u32,
     pub autostart: bool,
@@ -31,8 +47,17 @@ impl Default for Settings {
             widget_enabled: false,
             widget_edit: false,
             widget_acrylic: false,
-            widget_font_size: 26,
+            widget_on_top: false,
+            widget_click_through: true,
+            widget_linked: false,
             widget_bounds: None,
+            wallpaper_enabled: false,
+            wallpaper_monitor: -1,
+            wallpaper_pause_covered: true,
+            wallpaper_linked: false,
+            main_style: serde_json::Value::Null,
+            widget_style: serde_json::Value::Null,
+            wallpaper_style: serde_json::Value::Null,
             simple_glass: false,
             bg_fps: 30,
             autostart: false,
@@ -96,9 +121,14 @@ pub fn update(app: &AppHandle, patch: serde_json::Value) -> Result<Settings, Str
     if old.widget_enabled != new.widget_enabled
         || old.widget_edit != new.widget_edit
         || old.widget_acrylic != new.widget_acrylic
+        || old.widget_on_top != new.widget_on_top
+        || old.widget_click_through != new.widget_click_through
         || old.theme != new.theme
     {
         crate::widget::sync(app);
+    }
+    if old.wallpaper_enabled != new.wallpaper_enabled || old.wallpaper_monitor != new.wallpaper_monitor {
+        crate::wallpaper::sync(app);
     }
     crate::tray::refresh(app);
     let _ = app.emit("settings:changed", &new);

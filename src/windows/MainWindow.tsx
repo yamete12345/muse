@@ -7,16 +7,17 @@ import { PlayerBar } from "../components/PlayerBar";
 import { Sidebar } from "../components/Sidebar";
 import { TitleBar } from "../components/TitleBar";
 import { togglePlay } from "../core/api";
+import { useMainStyle } from "../core/appearance";
 import { useStore } from "../core/store";
 import { useResolvedTheme } from "../core/theme";
 import { setPaused } from "../core/ticker";
 import { usePanel } from "../core/ui";
 
-const IDLE_MS = 2800;
-
 export function MainWindow() {
   const theme = useResolvedTheme();
   const panel = usePanel();
+  const look = useMainStyle();
+  const idleMs = Math.max(1, look.idleSeconds) * 1000;
   const [idle, setIdle] = useState(false);
   const playing = useStore((s) => s.media?.playing ?? false);
   const timer = useRef(0);
@@ -25,8 +26,8 @@ export function MainWindow() {
   const wake = useCallback(() => {
     setIdle(false);
     clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setIdle(true), IDLE_MS);
-  }, []);
+    timer.current = window.setTimeout(() => setIdle(true), idleMs);
+  }, [idleMs]);
   useEffect(() => {
     wake();
     return () => clearTimeout(timer.current);
@@ -58,15 +59,16 @@ export function MainWindow() {
   }, []);
 
   const hidden = idle && playing && !panel;
+  const playerClass = look.player === "always" ? "player-pinned" : "";
 
   return (
-    <div className={`app ${hidden ? "is-idle" : ""} ${panel ? "has-pane" : ""}`} onMouseMove={wake} onMouseDown={wake}>
-      <Background light={theme === "light"} />
+    <div className={`app ${hidden ? "is-idle" : ""} ${panel ? "has-pane" : ""} ${playerClass}`} onMouseMove={wake} onMouseDown={wake}>
+      <Background light={theme === "light"} scene={look} />
       <main className="stage">
-        <LyricsView mode="main" />
+        <LyricsView mode="main" look={look.lyrics} />
       </main>
-      <TitleBar />
-      <PlayerBar />
+      <TitleBar showTrack={look.showHeader} />
+      {look.player !== "hidden" && <PlayerBar />}
       <Sidebar light={theme === "light"} />
     </div>
   );

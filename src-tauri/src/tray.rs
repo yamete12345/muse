@@ -40,7 +40,9 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         app,
         &[
             &MenuItem::with_id(app, "show", "Показать окно", true, None::<&str>)?,
+            &MenuItem::with_id(app, "settings", "Настройки…", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
+            &CheckMenuItem::with_id(app, "wallpaper", "Живые обои", true, s.wallpaper_enabled, None::<&str>)?,
             &CheckMenuItem::with_id(app, "widget", "Виджет на рабочем столе", true, s.widget_enabled, None::<&str>)?,
             &CheckMenuItem::with_id(app, "widget-edit", "Переместить виджет", s.widget_enabled, s.widget_edit, None::<&str>)?,
             &theme,
@@ -61,7 +63,12 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
             let s = app.state::<AppState>().settings.lock().unwrap().clone();
             let patch = match event.id().as_ref() {
                 "show" => return show_main(app),
+                "settings" => {
+                    let _ = crate::settings_window::open(app);
+                    return;
+                }
                 "quit" => return app.exit(0),
+                "wallpaper" => serde_json::json!({ "wallpaperEnabled": !s.wallpaper_enabled }),
                 "widget" => serde_json::json!({ "widgetEnabled": !s.widget_enabled, "widgetEdit": false }),
                 "widget-edit" => serde_json::json!({ "widgetEdit": !s.widget_edit }),
                 "autostart" => serde_json::json!({ "autostart": !s.autostart }),

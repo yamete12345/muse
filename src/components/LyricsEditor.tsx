@@ -8,7 +8,7 @@ import type { LyricsPayload } from "../core/types";
 import { openPanel } from "../core/ui";
 import { Glass } from "./Glass/Glass";
 import { BackIcon, ForwardIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon, ReplayIcon, TapIcon, TrashIcon } from "./Icons";
-import { Segmented } from "./SettingsPanel";
+import { Segmented } from "./settings/controls";
 
 interface Row {
   text: string;
