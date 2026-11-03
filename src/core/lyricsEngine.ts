@@ -10,6 +10,7 @@
  */
 import type { Item } from "./lrc";
 import { Spring } from "./spring";
+import type { EngineTuning } from "./style";
 import { onFrame } from "./ticker";
 
 interface WordView {
@@ -35,15 +36,22 @@ interface ItemView {
 }
 
 export interface EngineOptions {
-  /** Where the active line sits, as a fraction of the container height. */
-  anchor: number;
   /** Center the active line on the anchor instead of aligning its top. */
   center?: boolean;
   interactive: boolean;
   onSeek?: (ms: number) => void;
 }
 
-const WAVE_DELAY_MS = 42;
+const DEFAULT_TUNING: EngineTuning = {
+  stiffness: 110,
+  damping: 21,
+  wave: 42,
+  fill: "smooth",
+  emphasis: true,
+  glow: 1,
+  anchor: 0.3,
+};
+
 const FREE_SCROLL_MS = 2600;
 const CJK = /[぀-ヿ㐀-鿿가-힯]/u;
 
@@ -61,6 +69,7 @@ export class LyricsEngine {
   private freeOffset = 0;
   private freeTimer = 0;
   private releasing: ItemView | null = null;
+  private tune: EngineTuning = { ...DEFAULT_TUNING };
   private readonly unsubscribe: () => void;
   private readonly ro: ResizeObserver;
 
@@ -87,6 +96,23 @@ export class LyricsEngine {
     this.root.replaceChildren();
   }
 
+  /** Applies appearance/motion settings live; geometry is re-measured afterwards. */
+  configure(t: Partial<EngineTuning>) {
+    const prev = this.tune;
+    this.tune = { ...prev, ...t };
+    this.root.dataset.fill = this.tune.fill;
+    for (const v of this.views) {
+      v.spring.stiffness = this.tune.stiffness;
+      v.spring.damping = this.tune.damping;
+    }
+    if (prev.fill !== this.tune.fill || (prev.emphasis && !this.tune.emphasis)) {
+      const cur = this.views[this.active];
+      if (cur) this.resetWords(cur);
+    }
+    // Fonts/sizes may have changed through CSS variables in the same commit.
+    requestAnimationFrame(() => this.layout(false));
+  }
+
   setItems(items: Item[]) {
     this.root.replaceChildren();
     this.views = items.map((it) => this.build(it));
@@ -109,7 +135,7 @@ export class LyricsEngine {
       item,
       el,
       height: 0,
-      spring: new Spring(),
+      spring: new Spring(0, this.tune.stiffness, this.tune.damping),
       pending: null,
       pendingAt: 0,
       shown: true,
@@ -212,7 +238,7 @@ export class LyricsEngine {
 
     const activeH = this.views[a]?.height ?? 0;
     const base =
-      this.viewH * this.opts.anchor - (this.tops[a] ?? 0) - (this.opts.center ? activeH / 2 : 0) - this.freeOffset;
+      this.viewH * this.tune.anchor - (this.tops[a] ?? 0) - (this.opts.center ? activeH / 2 : 0) - this.freeOffset;
     const now = performance.now();
 
     this.views.forEach((v, i) => {
@@ -228,7 +254,7 @@ export class LyricsEngine {
       } else {
         // Lines below the active one start moving a little later: the wave.
         const rel = visualIdx[i] - activeVisual;
-        const delay = this.free || rel <= 0 ? 0 : Math.min(rel, 8) * WAVE_DELAY_MS;
+        const delay = this.free || rel <= 0 ? 0 : Math.min(rel, 8) * this.tune.wave;
         v.pending = target;
         v.pendingAt = now + delay;
       }
@@ -270,7 +296,7 @@ export class LyricsEngine {
     }
     // Let a held note finish its glow after the line moves on.
     if (this.releasing) {
-      if (!this.updateEmphasisOnly(this.releasing, t)) this.releasing = null;
+      if (!this.tune.emphasis || !this.updateEmphasisOnly(this.releasing, t)) this.releasing = null;
     }
   };
 
@@ -295,14 +321,31 @@ export class LyricsEngine {
     if (v.words.some((w) => w.e > 0)) this.releasing = v;
   }
 
-  private updateWords(v: ItemView, t: number) {
+  /** Clears fill and emphasis state so a mode switch starts clean. */
+  private resetWords(v: ItemView) {
     for (const w of v.words) {
-      const q = t <= w.start ? 0 : t >= w.end ? 1 : (t - w.start) / (w.end - w.start);
+      w.q = -1;
+      w.e = 0;
+      w.el.style.removeProperty("--e");
+      for (const l of w.letters ?? []) {
+        l.style.transform = "";
+        l.style.textShadow = "";
+      }
+    }
+  }
+
+  private updateWords(v: ItemView, t: number) {
+    const { fill, emphasis } = this.tune;
+    for (const w of v.words) {
+      let q: number;
+      if (fill === "line") q = 1;
+      else if (fill === "word") q = t >= w.start ? 1 : 0;
+      else q = t <= w.start ? 0 : t >= w.end ? 1 : (t - w.start) / (w.end - w.start);
       if (q !== w.q && (Math.abs(q - w.q) > 0.0015 || q === 0 || q === 1)) {
         w.q = q;
         w.el.style.setProperty("--q", q.toFixed(4));
       }
-      if (w.letters) this.updateEmphasis(w, t);
+      if (w.letters && emphasis) this.updateEmphasis(w, t);
     }
   }
 
@@ -340,8 +383,10 @@ export class LyricsEngine {
         }
         continue;
       }
+      const glow = lift * this.tune.glow;
       l.style.transform = `translateY(${(-lift * 0.055).toFixed(4)}em)`;
-      l.style.textShadow = `0 0 ${(lift * 0.42).toFixed(3)}em rgba(var(--glow-rgb),${(lift * 0.8).toFixed(3)})`;
+      l.style.textShadow =
+        glow > 0.005 ? `0 0 ${(glow * 0.42).toFixed(3)}em rgba(var(--glow-rgb),${Math.min(1, glow * 0.8).toFixed(3)})` : "";
     }
   }
 

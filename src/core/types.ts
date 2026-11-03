@@ -33,7 +33,17 @@ export interface Settings {
   widgetEnabled: boolean;
   widgetEdit?: boolean;
   widgetAcrylic: boolean;
-  widgetFontSize: number;
+  widgetOnTop: boolean;
+  widgetClickThrough: boolean;
+  widgetLinked: boolean;
+  wallpaperEnabled: boolean;
+  wallpaperMonitor: number;
+  wallpaperPauseCovered: boolean;
+  wallpaperLinked: boolean;
+  /** Opaque appearance objects, resolved against defaults in core/style.ts. */
+  mainStyle: unknown;
+  widgetStyle: unknown;
+  wallpaperStyle: unknown;
   simpleGlass: boolean;
   bgFps: number;
   autostart: boolean;

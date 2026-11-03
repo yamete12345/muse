@@ -3,40 +3,69 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { MeshBackground, noiseDataUrl } from "../core/background";
 import { useStore } from "../core/store";
+import type { SceneStyle } from "../core/style";
 
-export function Background({ light }: { light: boolean }) {
+interface Props {
+  light: boolean;
+  scene: SceneStyle;
+  /** Mirror the picture's tone into the native window background (avoids resize flashes). */
+  syncWindow?: boolean;
+}
+
+export function Background({ light, scene, syncWindow = true }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const bg = useRef<MeshBackground | null>(null);
   const cover = useStore((s) => s.cover);
   const playing = useStore((s) => s.media?.playing ?? false);
   const fps = useStore((s) => s.settings.bgFps);
   const noise = useMemo(noiseDataUrl, []);
+  const solid = scene.background === "solid";
 
   useEffect(() => {
+    if (solid) return;
+    let b: MeshBackground;
     try {
-      const b = new MeshBackground(canvas.current!);
-      // Native window + page background follow the picture, so resizing never flashes.
-      let pending = 0;
-      b.onTone = (rgb) => {
-        document.body.style.background = `rgb(${rgb.join(",")})`;
-        clearTimeout(pending);
-        pending = window.setTimeout(() => getCurrentWindow().setBackgroundColor([...rgb, 255]).catch(() => {}), 60);
-      };
-      bg.current = b;
+      b = new MeshBackground(canvas.current!);
     } catch (e) {
       console.warn("background disabled:", e);
+      return;
     }
-    return () => bg.current?.destroy();
-  }, []);
+    let pending = 0;
+    b.onTone = (rgb) => {
+      document.body.style.background = `rgb(${rgb.join(",")})`;
+      if (!syncWindow) return;
+      clearTimeout(pending);
+      pending = window.setTimeout(() => getCurrentWindow().setBackgroundColor([...rgb, 255]).catch(() => {}), 60);
+    };
+    bg.current = b;
+    return () => {
+      b.destroy();
+      bg.current = null;
+    };
+  }, [solid, syncWindow]);
 
-  useEffect(() => bg.current?.setCover(cover), [cover]);
-  useEffect(() => bg.current?.setPlaying(playing), [playing]);
-  useEffect(() => bg.current?.setFps(fps || 30), [fps]);
-  useEffect(() => bg.current?.setTheme(light), [light]);
+  useEffect(() => bg.current?.setCover(cover), [cover, solid]);
+  useEffect(() => bg.current?.setPlaying(playing), [playing, solid]);
+  useEffect(() => bg.current?.setFps(fps || 30), [fps, solid]);
+  useEffect(() => bg.current?.setTheme(light), [light, solid]);
+  useEffect(
+    () => bg.current?.setScene(scene.bgBrightness, scene.bgSaturation, scene.background === "static" ? 0 : scene.bgSpeed),
+    [scene.bgBrightness, scene.bgSaturation, scene.bgSpeed, scene.background, solid],
+  );
+
+  useEffect(() => {
+    if (!solid) return;
+    document.body.style.background = scene.bgColor;
+    if (syncWindow) getCurrentWindow().setBackgroundColor(scene.bgColor).catch(() => {});
+  }, [solid, scene.bgColor, syncWindow]);
 
   return (
     <div className="bg" aria-hidden>
-      <canvas ref={canvas} />
+      {solid ? (
+        <div className="bg-solid" style={{ background: scene.bgColor, filter: `brightness(${scene.bgBrightness})` }} />
+      ) : (
+        <canvas ref={canvas} key="mesh" />
+      )}
       <div className="bg-noise" style={{ backgroundImage: `url(${noise})` }} />
     </div>
   );

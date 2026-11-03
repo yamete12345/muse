@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import { clock } from "./store";
+import { clock, patchSettingsLocal } from "./store";
 import type { Settings } from "./types";
 
 const quiet = (p: Promise<unknown>) => p.catch((e) => console.warn(e));
@@ -27,4 +27,24 @@ export const deleteUserLyrics = () => quiet(invoke("delete_user_lyrics"));
 
 export const setOffset =(ms: number) => quiet(invoke("set_offset", { ms: Math.round(ms) }));
 
-export const updateSettings = (patch: Partial<Settings>) => quiet(invoke("set_settings", { patch }));
+// Sliders fire on every step: apply locally at once, send to Rust at most every 60 ms.
+let pending: Partial<Settings> | null = null;
+let flushTimer = 0;
+
+export function updateSettings(patch: Partial<Settings>) {
+  patchSettingsLocal(patch);
+  pending = { ...pending, ...patch };
+  if (!flushTimer) {
+    flushTimer = window.setTimeout(() => {
+      const p = pending;
+      pending = null;
+      flushTimer = 0;
+      if (p) quiet(invoke("set_settings", { patch: p }));
+    }, 60);
+  }
+}
+
+export const openSettings = () => quiet(invoke("open_settings"));
+export const setWidgetSize = (width: number, height: number) => quiet(invoke("set_widget_size", { width, height }));
+export const getWidgetSize = () => invoke<[number, number] | null>("get_widget_size").catch(() => null);
+export const listMonitors = () => invoke<string[]>("list_monitors").catch(() => [] as string[]);

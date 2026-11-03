@@ -3,9 +3,15 @@
   inset: 0;
   overflow: hidden;
   contain: strict;
-  --lx-size: 48px;
+  --lx-size: var(--u-size, 48px);
   --lx-pad-x: 64px;
-  --blur-k: 1;
+}
+
+/* Lets the "word" fill mode animate between 0 and 1 with a transition. */
+@property --q {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
 }
 
 .lx-root.lx-enter {
@@ -30,21 +36,22 @@
 }
 
 .lx-line {
-  padding-block: calc(var(--lx-size) * 0.3);
+  padding-block: calc(var(--lx-size) * var(--u-gap, 0.3));
 }
 
 .lx-text {
   max-width: min(88%, 22em);
+  font-family: var(--u-font, var(--font));
   font-size: var(--lx-size);
-  font-weight: 760;
+  font-weight: var(--u-weight, 760);
   line-height: 1.17;
   letter-spacing: -0.022em;
   text-wrap: pretty;
   overflow-wrap: anywhere;
   transform-origin: 0 50%;
-  transform: scale(0.955);
+  transform: scale(var(--u-inactive-scale, 0.955));
   opacity: var(--unsung);
-  filter: blur(calc(var(--b, 0px) * var(--blur-k)));
+  filter: blur(calc(var(--b, 0px) * var(--blur-k, 1)));
   transition:
     transform 0.8s var(--ease-out),
     filter 0.7s ease,
@@ -62,12 +69,38 @@
 .lx-line[data-d="0"] .lx-text {
   transform: none;
   opacity: 1;
-  text-shadow: 0 0 0.55em var(--line-glow);
+  color: rgb(var(--accent-rgb, var(--text-rgb)));
+  text-shadow: 0 0 0.55em rgba(var(--glow-rgb), calc(var(--line-glow-a) * var(--glow-k, 1)));
   /* Becoming active must not fade: unsung words already match dim lines. */
   transition:
     transform 0.8s var(--ease-spring),
     filter 0.45s ease,
+    color 0.4s ease,
     opacity 0s;
+}
+
+/* "Whole line" fill: the line lights up at once, so let it fade in. */
+.lx-root[data-fill="line"] .lx-line[data-d="0"] .lx-text {
+  transition:
+    transform 0.8s var(--ease-spring),
+    filter 0.45s ease,
+    opacity 0.35s ease;
+}
+
+.lx-root[data-fill="word"] .lx-line[data-d="0"] .lx-w {
+  transition:
+    --q 0.32s var(--ease-out),
+    transform 0.3s var(--ease-out);
+}
+
+.lx-root[data-align="center"] .lx-text {
+  margin-inline: auto;
+  text-align: center;
+  transform-origin: 50% 50%;
+}
+
+.lx-root[data-align="center"] .lx-gap {
+  justify-content: center;
 }
 
 /* Hover target for click-to-seek. */
@@ -156,7 +189,7 @@
   width: calc(var(--lx-size) * 0.3);
   height: calc(var(--lx-size) * 0.3);
   border-radius: 50%;
-  background: rgb(var(--text-rgb));
+  background: rgb(var(--accent-rgb, var(--text-rgb)));
   opacity: 0.22;
-  box-shadow: 0 0 0.6em var(--line-glow);
+  box-shadow: 0 0 0.6em rgba(var(--glow-rgb), calc(var(--line-glow-a) * var(--glow-k, 1)));
 }

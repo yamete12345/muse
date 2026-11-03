@@ -18,11 +18,28 @@ const defaultSettings: Settings = {
   theme: "dark",
   widgetEnabled: false,
   widgetAcrylic: false,
-  widgetFontSize: 26,
+  widgetOnTop: false,
+  widgetClickThrough: true,
+  widgetLinked: false,
+  wallpaperEnabled: false,
+  wallpaperMonitor: -1,
+  wallpaperPauseCovered: true,
+  wallpaperLinked: false,
+  mainStyle: null,
+  widgetStyle: null,
+  wallpaperStyle: null,
   simpleGlass: false,
   bgFps: 30,
   autostart: false,
 };
+
+/** Applies a settings change locally right away; Rust confirms via `settings:changed`. */
+export function patchSettingsLocal(patch: Partial<Settings>) {
+  // Echoes of our own in-flight changes would make dragged sliders jitter.
+  localUntil = performance.now() + 300;
+  set({ settings: { ...state.settings, ...patch } });
+}
+let localUntil = 0;
 
 let state: AppStore = { ready: false, media: null, cover: null, lyrics: null, settings: defaultSettings, offsetMs: 0 };
 const listeners = new Set<() => void>();
@@ -64,7 +81,10 @@ export async function initStore() {
       if (e.payload.key === state.media?.key) set({ cover: e.payload.dataUrl || null });
     }),
     listen<LyricsPayload | null>("lyrics:loaded", (e) => set({ lyrics: e.payload })),
-    listen<Settings>("settings:changed", (e) => set({ settings: e.payload })),
+    listen<Settings>("settings:changed", (e) => {
+      if (performance.now() < localUntil) return;
+      set({ settings: e.payload });
+    }),
     listen<number>("offset:changed", (e) => {
       clock.offsetMs = e.payload;
       set({ offsetMs: e.payload });

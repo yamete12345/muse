@@ -14,7 +14,7 @@
   --faint: rgba(255, 255, 255, 0.38);
   --unsung: 0.33;
   --glow-rgb: 255, 255, 255;
-  --line-glow: rgba(255, 255, 255, 0.16);
+  --line-glow-a: 0.16;
   --track: rgba(255, 255, 255, 0.2);
   --track-fill: rgba(255, 255, 255, 0.92);
 
@@ -44,7 +44,7 @@
   --faint: rgba(24, 18, 32, 0.36);
   --unsung: 0.28;
   --glow-rgb: 255, 255, 255;
-  --line-glow: rgba(255, 255, 255, 0.5);
+  --line-glow-a: 0.5;
   --track: rgba(24, 18, 32, 0.14);
   --track-fill: rgba(24, 18, 32, 0.82);
 

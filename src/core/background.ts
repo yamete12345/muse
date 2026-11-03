@@ -19,6 +19,8 @@ uniform float uMix;
 uniform float uTime;
 uniform float uTheme;
 uniform float uAspect;
+uniform float uBright;
+uniform float uSat;
 
 mat2 rot(float a) { float s = sin(a), c = cos(a); return mat2(c, -s, s, c); }
 
@@ -41,8 +43,8 @@ void main() {
   p += 0.07 * vec2(sin(p.y * 2.6 + uTime * 0.11), cos(p.x * 2.2 - uTime * 0.09));
   vec3 col = mix(cover(uA, p), cover(uB, p), uMix);
   float l = dot(col, vec3(0.299, 0.587, 0.114));
-  vec3 dark = mix(vec3(l), col, 1.35) * 0.6;
-  vec3 light = mix(vec3(l), col, 0.8) * 0.42 + 0.56;
+  vec3 dark = mix(vec3(l), col, 1.35 * uSat) * 0.6 * uBright;
+  vec3 light = mix(vec3(l), col, 0.8 * uSat) * 0.42 + 0.56 * min(uBright, 1.2);
   vec3 c = mix(dark, light, uTheme);
   float v = smoothstep(1.25, 0.15, length(vUv - 0.5) * 1.4);
   c *= mix(mix(0.78, 1.0, v), mix(0.95, 1.0, v), uTheme);
@@ -70,6 +72,9 @@ export class MeshBackground {
   private readonly unsubscribe: () => void;
   private readonly ro: ResizeObserver;
   private loadToken = 0;
+  private brightness = 1;
+  private saturation = 1;
+  private speed = 1;
   private average: [number, number, number] = [70, 58, 110];
   onTone: ((rgb: [number, number, number]) => void) | null = null;
 
@@ -106,7 +111,7 @@ export class MeshBackground {
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
-    for (const name of ["uA", "uB", "uMix", "uTime", "uTheme", "uAspect"]) this.u[name] = gl.getUniformLocation(prog, name);
+    for (const name of ["uA", "uB", "uMix", "uTime", "uTheme", "uAspect", "uBright", "uSat"]) this.u[name] = gl.getUniformLocation(prog, name);
     gl.uniform1i(this.u.uA, 0);
     gl.uniform1i(this.u.uB, 1);
 
@@ -134,6 +139,15 @@ export class MeshBackground {
     this.playing = playing;
   }
 
+  /** Brightness/saturation multipliers and drift speed (0 freezes the motion). */
+  setScene(brightness: number, saturation: number, speed: number) {
+    this.brightness = brightness;
+    this.saturation = saturation;
+    this.speed = speed;
+    this.dirty = true;
+    this.onTone?.(this.tone());
+  }
+
   setTheme(light: boolean) {
     this.themeTarget = light ? 1 : 0;
     this.onTone?.(this.tone());
@@ -149,7 +163,10 @@ export class MeshBackground {
     const l = 0.299 * r + 0.587 * g + 0.114 * b;
     const light = this.themeTarget === 1;
     return [r, g, b].map((c) => {
-      const v = light ? (l + (c - l) * 0.8) * 0.42 + 0.56 * 255 : (l + (c - l) * 1.35) * 0.6 * 0.9;
+      const sat = this.saturation;
+      const v = light
+        ? (l + (c - l) * 0.8 * sat) * 0.42 + 0.56 * 255 * Math.min(this.brightness, 1.2)
+        : (l + (c - l) * 1.35 * sat) * 0.6 * 0.9 * this.brightness;
       return Math.round(Math.min(255, Math.max(0, v)));
     }) as [number, number, number];
   }
@@ -223,12 +240,14 @@ export class MeshBackground {
     gl.uniform1f(this.u.uMix, smoothstep(this.mix));
     gl.uniform1f(this.u.uTheme, smoothstep(this.theme));
     gl.uniform1f(this.u.uAspect, this.canvas.width / this.canvas.height);
+    gl.uniform1f(this.u.uBright, this.brightness);
+    gl.uniform1f(this.u.uSat, this.saturation);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
   private frame = (_ts: number, dt: number) => {
     // Slow drift while paused, like the real thing.
-    this.time += dt * (this.playing ? 1 : 0.3);
+    this.time += dt * (this.playing ? 1 : 0.3) * this.speed;
     if (this.fading) {
       this.mix = Math.min(1, this.mix + dt / FADE_S);
       if (this.mix >= 1) {
@@ -242,6 +261,8 @@ export class MeshBackground {
     }
 
     this.acc += dt;
+    const moving = this.speed > 0 || this.fading || this.theme !== this.themeTarget;
+    if (!moving && !this.dirty) return;
     if (this.acc < 1 / this.fps - 0.002 && !this.dirty) return;
     this.acc = 0;
     this.dirty = false;
