@@ -546,7 +546,7 @@ function About() {
     <div className="sw-about">
       <Logo size={112} className="sw-about-logo" />
       <h2>MUSE</h2>
-      <p className="sw-about-version">Версия 0.2.0</p>
+      <p className="sw-about-version">Версия 0.2.1</p>
       <p>Синхронизированный текст песен для Windows: в окне, на рабочем столе и вместо обоев.</p>
       <p className="sw-about-small">
         Трек определяется через системные медиа-контролы Windows. Тексты: lrclib.net, затем Genius. Свои тексты и тайминги хранятся локально.
