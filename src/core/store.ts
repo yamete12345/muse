@@ -36,6 +36,7 @@ const defaultSettings: Settings = {
   autostart: false,
   closeToTray: true,
   updateCheck: true,
+  liveCover: true,
 };
 
 /** Applies a settings change locally right away; Rust confirms via `settings:changed`. */

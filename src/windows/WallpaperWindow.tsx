@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { Background } from "../components/Background";
 import { NoteIcon } from "../components/Icons";
+import { LiveCover } from "../components/LiveCover";
 import { LyricsView } from "../components/LyricsView";
 import { useWallpaperStyle } from "../core/appearance";
 import { useStore } from "../core/store";
@@ -44,14 +45,18 @@ export function WallpaperWindow() {
       </div>
       {artOnly && (
         <div className={`wallpaper-art is-${look.artPosition}`} key={media!.key}>
-          <div className="wallpaper-art-cover">{cover ? <img src={cover} alt="" /> : <NoteIcon size={72} />}</div>
+          <div className={`wallpaper-art-cover ${cover ? "has-cover" : ""}`}>{cover ? <LiveCover src={cover} halo /> : <NoteIcon size={72} />}</div>
           <div className="wallpaper-art-title">{media!.title}</div>
           <div className="wallpaper-art-artist">{media!.artist}</div>
         </div>
       )}
       {look.showTrack && media?.title && !artOnly && (
         <div className={`wallpaper-track is-${look.trackCorner}`} key={media.key}>
-          {cover && <img src={cover} alt="" />}
+          {cover && (
+            <div className="wallpaper-track-cover">
+              <LiveCover src={cover} className="lc-small" />
+            </div>
+          )}
           <div>
             <div className="wallpaper-track-title">{media.title}</div>
             <div className="wallpaper-track-artist">{media.artist}</div>

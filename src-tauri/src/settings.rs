@@ -51,6 +51,8 @@ pub struct Settings {
     pub close_to_tray: bool,
     /// Look for new versions on GitHub in the background.
     pub update_check: bool,
+    /// Covers drift, tilt and catch a highlight while music plays.
+    pub live_cover: bool,
 }
 
 impl Default for Settings {
@@ -80,6 +82,7 @@ impl Default for Settings {
             autostart: false,
             close_to_tray: true,
             update_check: true,
+            live_cover: true,
         }
     }
 }

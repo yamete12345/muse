@@ -58,6 +58,8 @@ export interface Settings {
   closeToTray: boolean;
   /** Look for new versions on GitHub in the background. */
   updateCheck: boolean;
+  /** Covers drift, tilt and catch a highlight while music plays. */
+  liveCover: boolean;
 }
 
 export interface MonitorInfo {
