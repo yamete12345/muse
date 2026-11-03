@@ -35,6 +35,7 @@ const defaultSettings: Settings = {
   bgFps: 30,
   autostart: false,
   closeToTray: true,
+  updateCheck: true,
 };
 
 /** Applies a settings change locally right away; Rust confirms via `settings:changed`. */

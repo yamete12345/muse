@@ -8,6 +8,7 @@ import { Glass } from "./Glass/Glass";
 import { CloseIcon, GearIcon, MaximizeIcon, MinimizeIcon, MoonIcon, PenIcon, SunIcon, WidgetIcon } from "./Icons";
 import { LyricsEditor } from "./LyricsEditor";
 import { Logo } from "./Logo";
+import { useUpdate } from "../core/update";
 
 const win = getCurrentWindow();
 
@@ -17,6 +18,7 @@ export function Sidebar({ light }: { light: boolean }) {
   const view = useView();
   const widget = useStore((s) => s.settings.widgetEnabled);
   const toTray = useStore((s) => s.settings.closeToTray);
+  const updateReady = useUpdate().status === "available";
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,6 +50,7 @@ export function Sidebar({ light }: { light: boolean }) {
             <div className="rail-group">
               <RailButton label={view === "settings" ? "Вернуться к тексту" : "Настройки и оформление"} active={view === "settings"} onClick={() => toggleView("settings")}>
                 <GearIcon size={19} />
+                {updateReady && <span className="rail-badge" aria-label="Есть обновление" />}
               </RailButton>
               <RailButton label="Свой текст и тайминги" active={panel === "editor"} onClick={() => togglePanel("editor")}>
                 <PenIcon size={18} />

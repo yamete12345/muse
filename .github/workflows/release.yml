@@ -31,11 +31,27 @@ jobs:
 
       - run: npm test
 
+      # The release text is the annotated tag's message; MUSE shows it in its
+      # update notice. Checkout does not bring the tag object, so fetch it.
+      - name: Release notes
+        id: notes
+        shell: bash
+        run: |
+          git fetch --depth=1 origin "+refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          notes=$(git tag -l --format='%(contents)' "$GITHUB_REF_NAME" | sed '/^-----BEGIN/,$d')
+          {
+            echo 'body<<NOTES_END'
+            echo "${notes:-Новая версия MUSE.}"
+            echo
+            echo 'Установщик для Windows 10/11: скачайте MUSE_*_x64-setup.exe ниже. Если MUSE уже установлена, она предложит обновиться сама.'
+            echo 'NOTES_END'
+          } >> "$GITHUB_OUTPUT"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "MUSE ${{ github.ref_name }}"
-          releaseBody: "Установщик для Windows 10/11: скачайте MUSE_*_x64-setup.exe ниже."
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: false

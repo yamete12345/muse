@@ -8,12 +8,17 @@ import { PlayerBar } from "../components/PlayerBar";
 import { SettingsPage } from "../components/SettingsPage";
 import { Sidebar } from "../components/Sidebar";
 import { TitleBar } from "../components/TitleBar";
+import { UpdateToast } from "../components/UpdateToast";
 import { togglePlay } from "../core/api";
 import { useMainStyle } from "../core/appearance";
 import { useStore } from "../core/store";
 import { useResolvedTheme } from "../core/theme";
 import { setPaused } from "../core/ticker";
 import { openView, usePanel, useView } from "../core/ui";
+import { initUpdates } from "../core/update";
+
+// Update news from Rust is shown in the main window only.
+initUpdates();
 
 export function MainWindow() {
   const theme = useResolvedTheme();
@@ -88,6 +93,7 @@ export function MainWindow() {
         {look.player !== "hidden" && <PlayerBar />}
       </div>
       <SettingsPage />
+      <UpdateToast />
       <Sidebar light={theme === "light"} />
     </div>
   );

@@ -3,6 +3,7 @@ mod media;
 mod settings;
 mod state;
 mod tray;
+mod updater;
 mod wallpaper;
 mod widget;
 
@@ -37,6 +38,21 @@ async fn set_widget_geometry(app: AppHandle, x: f64, y: f64, width: f64, height:
 #[tauri::command]
 async fn get_widget_geometry(app: AppHandle) -> Option<widget::Geometry> {
     widget::geometry(&app)
+}
+
+#[tauri::command]
+async fn check_update(app: AppHandle) -> Result<updater::UpdateInfo, String> {
+    updater::check(&app).await
+}
+
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    updater::install(&app).await
+}
+
+#[tauri::command]
+fn open_link(url: String) -> Result<(), String> {
+    updater::open_link(&url)
 }
 
 #[tauri::command]
@@ -179,6 +195,7 @@ pub fn run() {
             widget::sync(handle);
             wallpaper::sync(handle);
             wallpaper::spawn_watcher(handle.clone());
+            updater::spawn_checker(handle.clone());
 
             if !std::env::args().any(|a| a == "--hidden") {
                 tray::show_main(handle);
@@ -211,6 +228,9 @@ pub fn run() {
             set_widget_geometry,
             get_widget_geometry,
             list_monitors,
+            check_update,
+            install_update,
+            open_link,
             media::commands::media_toggle,
             media::commands::media_next,
             media::commands::media_prev,
