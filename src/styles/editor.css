@@ -60,6 +60,12 @@
     background 0.25s ease;
 }
 
+/* Thin scrollbar like the rest of the app, without the Windows arrows. */
+.ed-textarea {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--text-rgb), 0.22) transparent;
+}
+
 .ed-textarea:focus {
   background: rgba(var(--text-rgb), 0.1);
   box-shadow:
