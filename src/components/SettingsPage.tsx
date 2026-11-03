@@ -461,7 +461,7 @@ function WallpaperTab({ s }: { s: Settings }) {
         </div>
       )}
 
-      <Preview key={m ?? "shared"} variant="wallpaper" look={shown.lyrics} scene={shown} column={wallpaperColumn(w)} />
+      <Preview key={m ?? "shared"} variant="wallpaper" look={shown.lyrics} scene={shown} column={wallpaperColumn(shown)} />
       <PresetPicker
         current={shown.lyrics}
         scene={shown}
@@ -470,9 +470,14 @@ function WallpaperTab({ s }: { s: Settings }) {
       />
 
       <Section title="Расположение">
-        <Row label="Текст на экране" hint="Колонка и выравнивание строк">
+        <Row
+          label="Текст на экране"
+          hint={s.wallpaperLinked ? "Как выравнивание в главном окне" : "Колонка и выравнивание строк"}
+          disabled={s.wallpaperLinked}
+        >
           <Segmented
-            value={w.position}
+            value={shown.position}
+            disabled={s.wallpaperLinked}
             onChange={(position) => set({ position, lyrics: { ...w.lyrics, align: position } })}
             options={[
               ["left", "Слева"],
@@ -529,7 +534,7 @@ function SyncTab({ s }: { s: Settings }) {
 
   return (
     <>
-      <Section title="Связать оформление" hint="Связанные поверхности повторяют шрифт, цвета, эффекты и анимацию главного окна. Размер и положение текста у каждой свои.">
+      <Section title="Связать оформление" hint="Связанные поверхности повторяют шрифт, цвета, эффекты, анимацию и выравнивание главного окна. Размер текста и высота активной строки у каждой свои.">
         <Toggle label="Виджет повторяет главное окно" value={s.widgetLinked} onChange={(widgetLinked) => updateSettings({ widgetLinked })} />
         <Toggle label="Обои повторяют главное окно" hint="Вместе с фоном" value={s.wallpaperLinked} onChange={(wallpaperLinked) => updateSettings({ wallpaperLinked })} />
       </Section>
