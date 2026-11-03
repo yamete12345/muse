@@ -330,7 +330,9 @@
 
 .lx-wallpaper {
   --lx-size: var(--u-size, clamp(30px, 2.4vw + 12px, 76px));
-  --lx-pad-x: 0px;
+  /* Room at the column edges for the interlude dots' breathing and the glow;
+     the root clips everything outside it. */
+  --lx-pad-x: calc(var(--lx-size) * 0.5);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent 100%);
 }
