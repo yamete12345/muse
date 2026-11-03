@@ -1,6 +1,6 @@
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, Wry};
+use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use crate::state::AppState;
 
@@ -12,6 +12,12 @@ pub fn show_main(app: &AppHandle) {
         let _ = w.show();
         let _ = w.set_focus();
     }
+}
+
+/// Shows the main window on its settings tab.
+pub fn show_settings(app: &AppHandle) {
+    show_main(app);
+    let _ = app.emit_to("main", "ui:settings", ());
 }
 
 pub fn toggle_main(app: &AppHandle) {
@@ -63,10 +69,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
             let s = app.state::<AppState>().settings.lock().unwrap().clone();
             let patch = match event.id().as_ref() {
                 "show" => return show_main(app),
-                "settings" => {
-                    let _ = crate::settings_window::open(app);
-                    return;
-                }
+                "settings" => return show_settings(app),
                 "quit" => return app.exit(0),
                 "wallpaper" => serde_json::json!({ "wallpaperEnabled": !s.wallpaper_enabled }),
                 "widget" => serde_json::json!({ "widgetEnabled": !s.widget_enabled, "widgetEdit": false }),

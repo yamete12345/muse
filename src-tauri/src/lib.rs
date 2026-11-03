@@ -1,7 +1,6 @@
 mod lyrics;
 mod media;
 mod settings;
-mod settings_window;
 mod state;
 mod tray;
 mod wallpaper;
@@ -28,11 +27,6 @@ fn get_snapshot(state: State<'_, AppState>) -> Snapshot {
 #[tauri::command]
 async fn set_settings(app: AppHandle, patch: serde_json::Value) -> Result<Settings, String> {
     settings::update(&app, patch)
-}
-
-#[tauri::command]
-async fn open_settings(app: AppHandle) -> Result<(), String> {
-    settings_window::open(&app).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -193,7 +187,6 @@ pub fn run() {
             retry_lyrics,
             save_user_lyrics,
             delete_user_lyrics,
-            open_settings,
             set_widget_size,
             get_widget_size,
             list_monitors,

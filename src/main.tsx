@@ -4,7 +4,6 @@ import "@fontsource-variable/inter";
 
 import { initStore } from "./core/store";
 import { MainWindow } from "./windows/MainWindow";
-import { SettingsWindow } from "./windows/SettingsWindow";
 import { WallpaperWindow } from "./windows/WallpaperWindow";
 import { WidgetWindow } from "./windows/WidgetWindow";
 import "./styles/theme.css";
@@ -19,7 +18,6 @@ if (label === "widget") document.documentElement.classList.add("is-widget");
 
 const views: Record<string, () => JSX.Element> = {
   widget: WidgetWindow,
-  settings: SettingsWindow,
   wallpaper: WallpaperWindow,
 };
 const View = views[label] ?? MainWindow;

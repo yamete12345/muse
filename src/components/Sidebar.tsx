@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-import { openSettings, updateSettings } from "../core/api";
+import { updateSettings } from "../core/api";
 import { useStore } from "../core/store";
-import { openPanel, togglePanel, usePanel } from "../core/ui";
+import { openPanel, togglePanel, toggleView, usePanel, useView } from "../core/ui";
 import { Glass } from "./Glass/Glass";
 import { CloseIcon, GearIcon, MaximizeIcon, MinimizeIcon, MoonIcon, PenIcon, SunIcon, WidgetIcon } from "./Icons";
 import { LyricsEditor } from "./LyricsEditor";
@@ -14,6 +14,7 @@ const win = getCurrentWindow();
 /** Right-hand rail with every action, plus the panes it opens. */
 export function Sidebar({ light }: { light: boolean }) {
   const panel = usePanel();
+  const view = useView();
   const widget = useStore((s) => s.settings.widgetEnabled);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export function Sidebar({ light }: { light: boolean }) {
             <span className="rail-sep" />
 
             <div className="rail-group">
-              <RailButton label="Настройки и оформление" onClick={openSettings}>
+              <RailButton label={view === "settings" ? "Вернуться к тексту" : "Настройки и оформление"} active={view === "settings"} onClick={() => toggleView("settings")}>
                 <GearIcon size={19} />
               </RailButton>
               <RailButton label="Свой текст и тайминги" active={panel === "editor"} onClick={() => togglePanel("editor")}>

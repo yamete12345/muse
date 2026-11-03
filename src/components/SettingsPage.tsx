@@ -1,13 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 
-import { Background } from "../components/Background";
-import { Glass } from "../components/Glass/Glass";
-import { CloseIcon, GearIcon, MinimizeIcon, NoteIcon, WidgetIcon } from "../components/Icons";
-import { Logo } from "../components/Logo";
-import { ActionButton, Row, Section, Segmented, Slider, Toggle, ColorField } from "../components/settings/controls";
-import { LyricStyleEditor, SceneEditor } from "../components/settings/editors";
-import { Preview } from "../components/settings/Preview";
+import { Glass } from "./Glass/Glass";
+import { BackIcon, GearIcon, NoteIcon, WidgetIcon } from "./Icons";
+import { Logo } from "./Logo";
+import { ActionButton, Row, Section, Segmented, Slider, Toggle, ColorField } from "./settings/controls";
+import { LyricStyleEditor, SceneEditor } from "./settings/editors";
+import { Preview } from "./settings/Preview";
 import { getWidgetSize, listMonitors, setWidgetSize, updateSettings } from "../core/api";
 import { useStore } from "../core/store";
 import {
@@ -25,10 +23,8 @@ import {
   type WidgetBackground,
   type WidgetStyle,
 } from "../core/style";
-import { useResolvedTheme } from "../core/theme";
 import type { Settings, ThemeSetting } from "../core/types";
-
-const win = getCurrentWindow();
+import { openView, useView } from "../core/ui";
 
 type Tab = "general" | "main" | "widget" | "wallpaper" | "sync" | "about";
 
@@ -41,28 +37,42 @@ const TABS: [Tab, string, ReactNode][] = [
   ["about", "О программе", <NoteIcon size={16} key="a" />],
 ];
 
-export function SettingsWindow() {
-  const theme = useResolvedTheme();
-  const settings = useStore((s) => s.settings);
-  const [tab, setTab] = useState<Tab>("main");
-  const main = ownMain(settings);
-  const idx = TABS.findIndex(([t]) => t === tab);
+/** The settings tab of the main window; stays mounted while it animates out. */
+export function SettingsPage() {
+  const open = useView() === "settings";
+  const [mounted, setMounted] = useState(open);
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      return;
+    }
+    const t = setTimeout(() => setMounted(false), 420);
+    return () => clearTimeout(t);
+  }, [open]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && win.close();
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && openView("lyrics");
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [open]);
+
+  if (!mounted) return null;
+  return <Page closing={!open} />;
+}
+
+function Page({ closing }: { closing: boolean }) {
+  const settings = useStore((s) => s.settings);
+  const [tab, setTab] = useState<Tab>("main");
+  const idx = TABS.findIndex(([t]) => t === tab);
 
   return (
-    <div className="sw">
-      <Background light={theme === "light"} scene={{ ...main, bgBrightness: main.bgBrightness * 0.8 }} />
-
+    <div className={`sw ${closing ? "is-closing" : "is-open"}`}>
       <Glass variant="panel" radius={26} className="sw-nav" large>
         <div className="sw-nav-inner" data-tauri-drag-region="deep">
           <div className="sw-brand">
             <Logo size={34} />
-            <div>
+            <div className="sw-brand-text">
               <div className="sw-brand-name">mutxt</div>
               <div className="sw-brand-sub">Настройки</div>
             </div>
@@ -70,9 +80,9 @@ export function SettingsWindow() {
           <nav className="sw-tabs" style={{ ["--i" as string]: idx }}>
             <span className="sw-tab-thumb" />
             {TABS.map(([t, label, icon]) => (
-              <button key={t} className={`sw-tab ${t === tab ? "is-on" : ""}`} onClick={() => setTab(t)}>
+              <button key={t} className={`sw-tab ${t === tab ? "is-on" : ""}`} title={label} onClick={() => setTab(t)}>
                 <span className="sw-tab-icon">{icon}</span>
-                {label}
+                <span className="sw-tab-label">{label}</span>
               </button>
             ))}
           </nav>
@@ -82,14 +92,10 @@ export function SettingsWindow() {
       <main className="sw-main">
         <header className="sw-head" data-tauri-drag-region="deep">
           <h1 key={tab}>{TABS[idx][1]}</h1>
-          <div className="sw-head-buttons">
-            <Glass as="button" variant="button" className="icon-btn icon-btn-sm" aria-label="Свернуть" onClick={() => win.minimize()}>
-              <MinimizeIcon size={14} />
-            </Glass>
-            <Glass as="button" variant="button" className="icon-btn icon-btn-sm icon-btn-close" aria-label="Закрыть" onClick={() => win.close()}>
-              <CloseIcon size={14} />
-            </Glass>
-          </div>
+          <button className="link-button" onClick={() => openView("lyrics")}>
+            <BackIcon size={15} />
+            К тексту
+          </button>
         </header>
         <div className="sw-scroll">
           <div className="sw-content" key={tab}>
@@ -157,7 +163,7 @@ function General({ s }: { s: Settings }) {
             <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>]</kbd> / <kbd>[</kbd> текст раньше или позже на 0.1 с
           </div>
           <div>
-            <kbd>Пробел</kbd> пауза · <kbd>F11</kbd> полный экран · <kbd>Esc</kbd> закрыть панель
+            <kbd>Пробел</kbd> пауза · <kbd>F11</kbd> полный экран · <kbd>Esc</kbd> вернуться к тексту
           </div>
         </div>
       </Section>

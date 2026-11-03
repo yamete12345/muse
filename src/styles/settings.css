@@ -1,11 +1,78 @@
+/* The settings tab sits left of the rail, over the shared background. */
 .sw {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  top: var(--rail-gap);
+  left: var(--rail-gap);
+  bottom: var(--rail-gap);
+  right: calc(var(--rail-space) - var(--rail-gap) + 10px);
+  z-index: 6;
   display: flex;
   gap: 14px;
-  padding: 14px;
-  box-sizing: border-box;
-  overflow: hidden;
+  transform-origin: right center;
+}
+
+.sw.is-open {
+  animation: sw-in 0.6s var(--ease-spring) both;
+}
+
+.sw.is-closing {
+  animation: sw-out 0.38s var(--ease-out) both;
+  pointer-events: none;
+}
+
+@keyframes sw-in {
+  from {
+    opacity: 0;
+    transform: translateX(30px) scale(0.97);
+    filter: blur(8px);
+  }
+}
+
+@keyframes sw-out {
+  to {
+    opacity: 0;
+    transform: translateX(24px) scale(0.98);
+    filter: blur(6px);
+  }
+}
+
+/* The lyrics tab steps back while settings are open. */
+.lyrics-tab {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transition:
+    opacity 0.45s ease,
+    transform 0.7s var(--ease-spring),
+    filter 0.45s ease,
+    visibility 0s;
+}
+
+.app.in-settings .lyrics-tab {
+  opacity: 0;
+  transform: scale(0.96);
+  filter: blur(12px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.35s ease,
+    transform 0.5s var(--ease-out),
+    filter 0.35s ease,
+    visibility 0s linear 0.35s;
+}
+
+.bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--app-bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.app.in-settings .bg::after {
+  opacity: 0.22;
 }
 
 /* ---- Navigation ---- */
@@ -113,6 +180,38 @@
   transform: scale(1.12);
 }
 
+.sw-tab-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Narrow windows keep only the icons in the navigation. */
+@media (max-width: 900px) {
+  .sw-nav {
+    width: 64px;
+  }
+
+  .sw-nav-inner {
+    padding: 16px 8px;
+  }
+
+  .sw-brand {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sw-brand-text,
+  .sw-tab-label {
+    display: none;
+  }
+
+  .sw-tab {
+    justify-content: center;
+    padding: 0;
+  }
+}
+
 /* ---- Content ---- */
 
 .sw-main {
@@ -139,9 +238,14 @@
   animation: item-in 0.5s var(--ease-out) both;
 }
 
-.sw-head-buttons {
-  display: flex;
-  gap: 8px;
+.sw-head .link-button {
+  animation: item-in 0.5s var(--ease-out) both;
+}
+
+.sw-head h1 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sw-scroll {
