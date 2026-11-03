@@ -111,32 +111,10 @@ export function PlayerBar() {
               </Glass>
             </div>
 
-            <div className="player-app" title={media?.app}>
-              {appName(media?.app)}
-            </div>
+            <span aria-hidden />
           </div>
         </div>
       </Glass>
     </div>
   );
-}
-
-function appName(id?: string): string {
-  if (!id) return "";
-  const known: Record<string, string> = {
-    spotify: "Spotify",
-    "yandex.music": "Яндекс Музыка",
-    yandexmusic: "Яндекс Музыка",
-    chrome: "Chrome",
-    msedge: "Edge",
-    firefox: "Firefox",
-    opera: "Opera",
-    zunemusic: "Медиаплеер",
-    applemusic: "Apple Music",
-    deezer: "Deezer",
-    vk: "VK Музыка",
-  };
-  const low = id.toLowerCase();
-  for (const [k, v] of Object.entries(known)) if (low.includes(k)) return v;
-  return id.replace(/\.exe$/i, "").split(/[!.\\]/).filter(Boolean).pop() ?? "";
 }

@@ -65,45 +65,117 @@
   }
 }
 
+/* Now playing: artwork, title over artist, and a small level meter. */
 .widget-caption {
   position: absolute;
-  top: 10px;
+  top: 14px;
   left: 18px;
   right: 18px;
   z-index: 2;
   display: flex;
-  gap: 8px;
   align-items: center;
-  font-size: 12px;
-  font-weight: 650;
-  white-space: nowrap;
-  overflow: hidden;
-  text-shadow: var(--widget-text-shadow);
-  animation: item-in 0.6s var(--ease-out) both;
+  gap: 10px;
+  height: 34px;
+  animation: caption-in 0.7s var(--ease-out) both;
+}
+
+@keyframes caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+    filter: blur(4px);
+  }
 }
 
 .widget-thumb {
   flex: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   object-fit: cover;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 4px 12px -4px rgba(0, 0, 0, 0.55),
+    0 0 0 0.5px rgba(var(--text-rgb), 0.16);
+}
+
+.widget-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  /* Long names fade out instead of ending in an ellipsis. */
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+
+.widget-title,
+.widget-artist {
+  white-space: nowrap;
+  overflow: hidden;
+  text-shadow: var(--widget-text-shadow);
 }
 
 .widget-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 720;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
 }
 
 .widget-artist {
+  font-size: 11.5px;
+  font-weight: 560;
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.widget-eq {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  opacity: 0.7;
+}
+
+.widget-eq i {
+  width: 3px;
+  height: 100%;
+  border-radius: 1.5px;
+  background: rgb(var(--accent-rgb, var(--text-rgb)));
+  transform-origin: bottom;
+  transform: scaleY(0.3);
+  transition: transform 0.4s ease;
+}
+
+.widget-eq.is-playing i {
+  animation: eq 1.1s ease-in-out infinite;
+}
+
+.widget-eq.is-playing i:nth-child(2) {
+  animation-delay: -0.35s;
+  animation-duration: 0.9s;
+}
+
+.widget-eq.is-playing i:nth-child(3) {
+  animation-delay: -0.6s;
+  animation-duration: 1.25s;
+}
+
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
 }
 
 .lx-host-widget {
-  top: 30px;
+  top: 52px;
   z-index: 1;
 }
 
@@ -144,7 +216,10 @@
   transform: translateY(6px) scale(0.96);
   transition:
     opacity 0.25s ease,
-    transform 0.45s var(--ease-spring);
+    transform 0.45s var(--ease-spring),
+    --mx 0.22s var(--ease-out),
+    --my 0.22s var(--ease-out),
+    --lit 0.45s ease;
 }
 
 .widget:hover .widget-controls {
@@ -267,11 +342,45 @@
 .wallpaper-track {
   position: absolute;
   z-index: 3;
-  bottom: 64px;
   display: flex;
   align-items: center;
   gap: 14px;
+  max-width: 40vw;
   animation: item-in 0.8s var(--ease-out) both;
+}
+
+.wallpaper-track.is-bottom-left,
+.wallpaper-track.is-top-left {
+  left: 6%;
+}
+
+.wallpaper-track.is-bottom-right,
+.wallpaper-track.is-top-right {
+  right: 6%;
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.wallpaper-track.is-bottom-left,
+.wallpaper-track.is-bottom-right {
+  bottom: 64px;
+}
+
+/* Clear of the desktop icons' first rows and the top screen edge. */
+.wallpaper-track.is-top-left,
+.wallpaper-track.is-top-right {
+  top: 56px;
+}
+
+.wallpaper-track > div {
+  min-width: 0;
+}
+
+.wallpaper-track-title,
+.wallpaper-track-artist {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wallpaper-track img {
@@ -308,14 +417,31 @@
 /* No lyrics: the artwork in the middle of the screen. */
 .wallpaper-art {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
   z-index: 2;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  text-align: center;
   animation: art-in 1.1s var(--ease-out) both;
+}
+
+.wallpaper-art.is-center {
+  left: 0;
+  right: 0;
+  align-items: center;
+  text-align: center;
+}
+
+.wallpaper-art.is-left {
+  left: 8%;
+  align-items: flex-start;
+}
+
+.wallpaper-art.is-right {
+  right: 8%;
+  align-items: flex-end;
+  text-align: right;
 }
 
 @keyframes art-in {

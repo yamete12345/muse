@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "@fontsource-variable/inter";
 
+import { installCursorLight } from "./core/light";
 import { initStore } from "./core/store";
 import { MainWindow } from "./windows/MainWindow";
 import { WallpaperWindow } from "./windows/WallpaperWindow";
@@ -18,9 +19,11 @@ if (label === "widget") document.documentElement.classList.add("is-widget");
 
 const views: Record<string, () => JSX.Element> = {
   widget: WidgetWindow,
-  wallpaper: WallpaperWindow,
 };
-const View = views[label] ?? MainWindow;
+// Live wallpaper windows are labelled per monitor: wallpaper-0, wallpaper-1, ...
+const View = label.startsWith("wallpaper-") ? WallpaperWindow : views[label] ?? MainWindow;
+
+installCursorLight();
 
 // Keyboard/context-menu defaults of a browser make no sense in a desktop app.
 window.addEventListener("contextmenu", (e) => {

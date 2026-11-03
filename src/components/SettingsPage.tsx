@@ -21,6 +21,8 @@ import {
   resolveWallpaper,
   resolveWidget,
   wallpaperColumn,
+  wallpaperPatch,
+  type Corner,
   type LyricStyle,
   type Preset,
   type MainStyle,
@@ -28,7 +30,7 @@ import {
   type WidgetBackground,
   type WidgetStyle,
 } from "../core/style";
-import type { Settings, ThemeSetting } from "../core/types";
+import type { MonitorInfo, Settings, ThemeSetting } from "../core/types";
 import { openView, useView } from "../core/ui";
 
 type Tab = "general" | "main" | "widget" | "wallpaper" | "sync" | "about";
@@ -126,17 +128,19 @@ const setMain = (s: Settings, p: Partial<MainStyle>) => updateSettings({ mainSty
 const setMainLyrics = (s: Settings, p: Partial<LyricStyle>) => setMain(s, { lyrics: { ...ownMain(s).lyrics, ...p } });
 const setWidget = (s: Settings, p: Partial<WidgetStyle>) => updateSettings({ widgetStyle: { ...ownWidget(s), ...p } });
 const setWidgetLyrics = (s: Settings, p: Partial<LyricStyle>) => setWidget(s, { lyrics: { ...ownWidget(s).lyrics, ...p } });
-const setWall = (s: Settings, p: Partial<WallpaperStyle>) => updateSettings({ wallpaperStyle: { ...ownWallpaper(s), ...p } });
-const setWallLyrics = (s: Settings, p: Partial<LyricStyle>) => setWall(s, { lyrics: { ...ownWallpaper(s).lyrics, ...p } });
+// `m` is the monitor being edited; it only matters while monitors keep separate looks.
+const setWall = (s: Settings, p: Partial<WallpaperStyle>, m?: number) => updateSettings(wallpaperPatch(s, { ...ownWallpaper(s, m), ...p }, m));
+const setWallLyrics = (s: Settings, p: Partial<LyricStyle>, m?: number) => setWall(s, { lyrics: { ...ownWallpaper(s, m).lyrics, ...p } }, m);
 
 const resetMain = () => updateSettings({ mainStyle: DEFAULT_MAIN });
 const resetWidget = () => updateSettings({ widgetStyle: DEFAULT_WIDGET, widgetAcrylic: false });
-const resetWall = () => updateSettings({ wallpaperStyle: DEFAULT_WALLPAPER });
+const resetWall = () => updateSettings({ wallpaperStyle: DEFAULT_WALLPAPER, wallpaperStyles: null });
 const resetAll = () =>
   updateSettings({
     mainStyle: DEFAULT_MAIN,
     widgetStyle: DEFAULT_WIDGET,
     wallpaperStyle: DEFAULT_WALLPAPER,
+    wallpaperStyles: null,
     widgetAcrylic: false,
     widgetLinked: false,
     wallpaperLinked: false,
@@ -153,9 +157,9 @@ const pickWidget = (s: Settings, p: Preset) => {
   const w = ownWidget(s);
   updateSettings({ widgetLinked: false, widgetStyle: { ...w, lyrics: presetLyrics(p, w.lyrics) } });
 };
-const pickWall = (s: Settings, p: Preset) => {
-  const w = ownWallpaper(s);
-  updateSettings({ wallpaperLinked: false, wallpaperStyle: { ...w, ...presetScene(p), lyrics: presetLyrics(p, w.lyrics) } });
+const pickWall = (s: Settings, p: Preset, m?: number) => {
+  const w = ownWallpaper(s, m);
+  updateSettings({ wallpaperLinked: false, ...wallpaperPatch(s, { ...w, ...presetScene(p), lyrics: presetLyrics(p, w.lyrics) }, m) });
 };
 
 // ---- Tabs ------------------------------------------------------------------
@@ -226,7 +230,7 @@ function MainTab({ s }: { s: Settings }) {
   return (
     <>
       <Preview variant="main" look={m.lyrics} scene={m} />
-      <PresetPicker current={m.lyrics} onPick={(p) => pickMain(s, p)} />
+      <PresetPicker current={m.lyrics} scene={m} onPick={(p) => pickMain(s, p)} />
       <LyricStyleEditor value={m.lyrics} allowAutoSize onChange={(p) => setMainLyrics(s, p)} />
       <SceneEditor value={m} onChange={(p) => setMain(s, p)} />
       <Section title="Интерфейс">
@@ -352,29 +356,64 @@ function WidgetTab({ s }: { s: Settings }) {
 }
 
 function WallpaperTab({ s }: { s: Settings }) {
-  const w = ownWallpaper(s);
-  const shown = resolveWallpaper(s);
-  const [monitors, setMonitors] = useState<string[]>([]);
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
   useEffect(() => {
     listMonitors().then(setMonitors);
   }, []);
+
+  // Stored picks may say -1 for "the primary monitor"; the UI works with real indexes.
+  const primary = Math.max(0, monitors.findIndex((m) => m.primary));
+  const picked = [...new Set(s.wallpaperMonitors.map((i) => (i < 0 ? primary : i)))].sort((a, b) => a - b);
+  const multi = picked.length > 1;
+  const split = s.wallpaperSplit && multi;
+  const [editing, setEditing] = useState<number | null>(null);
+  const m = split ? (editing !== null && picked.includes(editing) ? editing : picked[0]) : undefined;
+
+  const w = ownWallpaper(s, m);
+  const shown = resolveWallpaper(s, m);
+  const set = (p: Partial<WallpaperStyle>) => setWall(s, p, m);
+
+  const toggleMonitor = (i: number) => {
+    const next = picked.includes(i) ? picked.filter((x) => x !== i) : [...picked, i];
+    if (next.length > 0) updateSettings({ wallpaperMonitors: next });
+  };
+  const setSplit = (on: boolean) => {
+    if (on) {
+      // Every monitor starts from the shared look, then goes its own way.
+      const shared = ownWallpaper({ ...s, wallpaperSplit: false });
+      updateSettings({ wallpaperSplit: true, wallpaperStyles: Object.fromEntries(picked.map((i) => [String(i), shared])) });
+    } else {
+      // Merging keeps the look of the monitor that was being edited.
+      updateSettings({ wallpaperSplit: false, wallpaperStyle: ownWallpaper(s, m), wallpaperStyles: null });
+    }
+  };
+  const name = (i: number) => (monitors[i] ? `Монитор ${i + 1}${monitors[i].primary ? " (основной)" : ""}` : `Монитор ${i + 1}`);
 
   return (
     <>
       <Section title="Живые обои" hint="Текст песни вместо обоев рабочего стола. Ярлыки остаются поверх, сами обои не реагируют на клики.">
         <Toggle label="Включить живые обои" value={s.wallpaperEnabled} onChange={(wallpaperEnabled) => updateSettings({ wallpaperEnabled })} />
         {monitors.length > 1 && (
-          <Row label="Монитор">
+          <Row label="Мониторы" hint="Можно выбрать несколько">
             <div className="st-list">
-              <button className={`st-chip ${s.wallpaperMonitor < 0 ? "is-on" : ""}`} onClick={() => updateSettings({ wallpaperMonitor: -1 })}>
-                Основной
-              </button>
-              {monitors.map((m, i) => (
-                <button key={m + i} className={`st-chip ${s.wallpaperMonitor === i ? "is-on" : ""}`} onClick={() => updateSettings({ wallpaperMonitor: i })}>
-                  {m}
+              {monitors.map((mon, i) => (
+                <button key={i} className={`st-chip ${picked.includes(i) ? "is-on" : ""}`} title={mon.name} onClick={() => toggleMonitor(i)}>
+                  {name(i)}
                 </button>
               ))}
             </div>
+          </Row>
+        )}
+        {multi && (
+          <Row label="Настройки мониторов" hint={split ? "У каждого монитора своё оформление" : "Все мониторы выглядят одинаково"}>
+            <Segmented<boolean>
+              value={split}
+              onChange={setSplit}
+              options={[
+                [false, "Общие"],
+                [true, "Раздельные"],
+              ]}
+            />
           </Row>
         )}
         <Toggle
@@ -385,10 +424,18 @@ function WallpaperTab({ s }: { s: Settings }) {
         />
       </Section>
 
-      <Preview variant="wallpaper" look={shown.lyrics} scene={shown} column={wallpaperColumn(w)} />
+      {split && (
+        <div className="st-monitor-switch">
+          <span>Настраиваете</span>
+          <Segmented<number> value={m!} onChange={setEditing} options={picked.map((i) => [i, name(i)] as [number, string])} />
+        </div>
+      )}
+
+      <Preview key={m ?? "shared"} variant="wallpaper" look={shown.lyrics} scene={shown} column={wallpaperColumn(w)} />
       <PresetPicker
         current={shown.lyrics}
-        onPick={(p) => pickWall(s, p)}
+        scene={shown}
+        onPick={(p) => pickWall(s, p, m)}
         hint={s.wallpaperLinked ? "Выбор пресета отвяжет обои от главного окна" : undefined}
       />
 
@@ -396,7 +443,7 @@ function WallpaperTab({ s }: { s: Settings }) {
         <Row label="Текст на экране" hint="Колонка и выравнивание строк">
           <Segmented
             value={w.position}
-            onChange={(position) => setWall(s, { position, lyrics: { ...w.lyrics, align: position } })}
+            onChange={(position) => set({ position, lyrics: { ...w.lyrics, align: position } })}
             options={[
               ["left", "Слева"],
               ["center", "По центру"],
@@ -404,13 +451,40 @@ function WallpaperTab({ s }: { s: Settings }) {
             ]}
           />
         </Row>
-        <Slider label="Ширина колонки" value={w.width} min={0.3} max={0.9} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(width) => setWall(s, { width })} />
-        <Toggle label="Трек и обложка внизу" value={w.showTrack} onChange={(showTrack) => setWall(s, { showTrack })} />
-        <Slider label="Затемнение" hint="Чтобы ярлыки читались лучше" value={w.dim} min={0} max={0.7} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(dim) => setWall(s, { dim })} />
+        <Slider label="Ширина колонки" value={w.width} min={0.3} max={0.9} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(width) => set({ width })} />
+        <Slider label="Затемнение" hint="Чтобы ярлыки читались лучше" value={w.dim} min={0} max={0.7} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(dim) => set({ dim })} />
       </Section>
 
-      <SceneEditor value={s.wallpaperLinked ? shown : w} linked={s.wallpaperLinked} onChange={(p) => setWall(s, p)} />
-      <LyricStyleEditor value={s.wallpaperLinked ? shown.lyrics : w.lyrics} allowAutoSize hideAlign linked={s.wallpaperLinked} onChange={(p) => setWallLyrics(s, p)} />
+      <Section title="Обложка трека">
+        <Toggle label="Карточка с обложкой и названием" value={w.showTrack} onChange={(showTrack) => set({ showTrack })} />
+        <Row label="Угол экрана" disabled={!w.showTrack}>
+          <Segmented<Corner>
+            value={w.trackCorner}
+            disabled={!w.showTrack}
+            onChange={(trackCorner) => set({ trackCorner })}
+            options={[
+              ["top-left", "↖"],
+              ["top-right", "↗"],
+              ["bottom-left", "↙"],
+              ["bottom-right", "↘"],
+            ]}
+          />
+        </Row>
+        <Row label="Большая обложка" hint="Когда у песни нет текста">
+          <Segmented
+            value={w.artPosition}
+            onChange={(artPosition) => set({ artPosition })}
+            options={[
+              ["left", "Слева"],
+              ["center", "По центру"],
+              ["right", "Справа"],
+            ]}
+          />
+        </Row>
+      </Section>
+
+      <SceneEditor value={s.wallpaperLinked ? shown : w} linked={s.wallpaperLinked} onChange={(p) => set(p)} />
+      <LyricStyleEditor value={s.wallpaperLinked ? shown.lyrics : w.lyrics} allowAutoSize hideAlign linked={s.wallpaperLinked} onChange={(p) => setWallLyrics(s, p, m)} />
     </>
   );
 }
@@ -435,6 +509,7 @@ function SyncTab({ s }: { s: Settings }) {
           <ActionButton
             onClick={() =>
               updateSettings({
+                wallpaperStyles: null,
                 wallpaperStyle: {
                   ...wall,
                   background: main.background,

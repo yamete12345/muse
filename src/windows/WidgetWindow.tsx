@@ -40,10 +40,17 @@ export function WidgetWindow() {
           <div className="widget-cover-bg" style={{ backgroundImage: `url(${cover})`, opacity: look.coverOpacity }} />
         )}
         {look.showCaption && media?.title && (
-          <div className="widget-caption">
+          <div className="widget-caption" key={media.key}>
             {look.showCover && cover && <img className="widget-thumb" src={cover} alt="" draggable={false} />}
-            <span className="widget-title">{media.title}</span>
-            <span className="widget-artist">{media.artist}</span>
+            <div className="widget-meta">
+              <div className="widget-title">{media.title}</div>
+              {media.artist && <div className="widget-artist">{media.artist}</div>}
+            </div>
+            <span className={`widget-eq ${playing ? "is-playing" : ""}`} aria-hidden>
+              <i />
+              <i />
+              <i />
+            </span>
           </div>
         )}
         <LyricsView mode="widget" look={look.lyrics} style={look.showCaption ? undefined : { top: 0 }} />

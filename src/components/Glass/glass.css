@@ -1,3 +1,38 @@
+/* Registered so the cursor light can glide and fade instead of jumping. */
+@property --mx {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 30%;
+}
+
+@property --my {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: -20%;
+}
+
+@property --lit {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+.lg,
+.st-card,
+.st-preset,
+.pv,
+.widget-controls {
+  --lit: 0;
+  transition:
+    --mx 0.22s var(--ease-out),
+    --my 0.22s var(--ease-out),
+    --lit 0.45s ease;
+}
+
+.is-lit {
+  --lit: 1;
+}
+
 .lg {
   position: relative;
   border-radius: var(--lg-r);
@@ -12,7 +47,10 @@
   transition:
     transform 0.45s var(--ease-spring),
     background-color 0.3s ease,
-    box-shadow 0.3s ease;
+    box-shadow 0.3s ease,
+    --mx 0.22s var(--ease-out),
+    --my 0.22s var(--ease-out),
+    --lit 0.45s ease;
 }
 
 .lg-refract {
@@ -30,14 +68,16 @@
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(
-    var(--glass-light-angle),
-    var(--glass-edge-strong),
-    var(--glass-edge-weak) 32%,
-    transparent 52%,
-    var(--glass-edge-weak) 78%,
-    var(--glass-edge-mid)
-  );
+  background:
+    radial-gradient(140px circle at var(--mx) var(--my), rgba(255, 255, 255, calc(var(--lit) * 0.75)), transparent 70%),
+    linear-gradient(
+      var(--glass-light-angle),
+      var(--glass-edge-strong),
+      var(--glass-edge-weak) 32%,
+      transparent 52%,
+      var(--glass-edge-weak) 78%,
+      var(--glass-edge-mid)
+    );
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -47,19 +87,39 @@
   z-index: 1;
 }
 
-/* Soft sheen on top plus a highlight that follows the pointer. */
-.lg::after {
+/* Soft sheen on top plus a light that follows the pointer. */
+.lg::after,
+.st-card::after,
+.st-preset::after,
+.pv::after,
+.widget-controls::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background:
-    radial-gradient(120% 80% at var(--mx, 30%) var(--my, -20%), var(--glass-sheen-hot), transparent 55%),
+    radial-gradient(260px circle at var(--mx) var(--my), rgba(255, 255, 255, calc(var(--lit) * var(--glass-hot-a))), transparent 70%),
     linear-gradient(180deg, var(--glass-sheen), transparent 45%);
-  opacity: 0.7;
   pointer-events: none;
-  transition: opacity 0.35s ease;
   z-index: 1;
+}
+
+.st-card::after,
+.st-preset::after,
+.pv::after,
+.widget-controls::after {
+  z-index: 4;
+}
+
+.st-card,
+.st-preset {
+  position: relative;
+}
+
+.lg-button::after {
+  background:
+    radial-gradient(90px circle at var(--mx) var(--my), rgba(255, 255, 255, calc(var(--lit) * var(--glass-hot-a) * 1.6)), transparent 70%),
+    linear-gradient(180deg, var(--glass-sheen), transparent 45%);
 }
 
 .lg > * {
@@ -81,10 +141,6 @@
 .lg-button:hover,
 .lg-pill.lg-hover:hover {
   background: var(--glass-tint-hover);
-}
-
-.lg-button:hover::after {
-  opacity: 1;
 }
 
 .lg-button:active {

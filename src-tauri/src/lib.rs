@@ -40,7 +40,7 @@ async fn get_widget_geometry(app: AppHandle) -> Option<widget::Geometry> {
 }
 
 #[tauri::command]
-async fn list_monitors(app: AppHandle) -> Vec<String> {
+async fn list_monitors(app: AppHandle) -> Vec<wallpaper::MonitorInfo> {
     wallpaper::monitors(&app)
 }
 
