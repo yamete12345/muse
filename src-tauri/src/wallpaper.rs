@@ -11,8 +11,8 @@ use tauri::{AppHandle, Emitter, Manager, Monitor, WebviewUrl, WebviewWindow, Web
 use windows::core::{w, BOOL};
 use windows::Win32::Foundation::{HWND, LPARAM, RECT, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, FindWindowExW, FindWindowW, GetClassNameW, GetForegroundWindow, GetParent, GetSystemMetrics,
-    GetWindowLongPtrW, GetWindowRect, IsZoomed, SendMessageTimeoutW, SetParent, SetWindowLongPtrW, SetWindowPos, SystemParametersInfoW,
+    EnumWindows, FindWindowExW, FindWindowW, GetClassNameW, GetForegroundWindow, GetParent, GetSystemMetrics, GetWindow,
+    GetWindowLongPtrW, GetWindowRect, IsZoomed, GW_CHILD, GW_HWNDNEXT, SWP_NOMOVE, SWP_NOSIZE, SendMessageTimeoutW, SetParent, SetWindowLongPtrW, SetWindowPos, SystemParametersInfoW,
     GWL_EXSTYLE, GWL_STYLE, SMTO_NORMAL, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SPI_GETDESKWALLPAPER,
     SPI_SETDESKWALLPAPER, SWP_NOACTIVATE, SWP_NOZORDER, SWP_SHOWWINDOW, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, WS_CAPTION,
     WS_CHILD, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP,
@@ -67,7 +67,9 @@ pub fn sync(app: &AppHandle) {
             removed = true;
         }
     }
-    if removed {
+    // Redrawing the system wallpaper makes Explorer lift it over any window
+    // still in place, so only do it once the last one is gone.
+    if removed && targets.is_empty() {
         restore_system_wallpaper();
     }
 
@@ -95,11 +97,60 @@ pub fn sync(app: &AppHandle) {
 fn attach_all(app: &AppHandle) {
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
+        let Some(host) = wallpaper_host() else {
+            eprintln!("wallpaper: desktop layer not found");
+            return;
+        };
         let targets = TARGETS.lock().unwrap().clone();
         for (label, r) in targets {
             if let Some(win) = handle.get_webview_window(&label) {
-                attach(&win, &label, r);
+                attach(&win, &label, r, host);
             }
+        }
+    });
+}
+
+/// Windows 11 24H2+ keeps the icons, our windows and Explorer's own wallpaper
+/// (a WorkerW) side by side in Progman. Explorer lifts its wallpaper whenever it
+/// redraws it (adding a monitor, a slideshow step), hiding windows below it.
+/// True when that happened to `hwnd`.
+fn buried(progman: HWND, hwnd: HWND) -> bool {
+    unsafe {
+        let mut cur = GetWindow(progman, GW_CHILD).ok();
+        while let Some(h) = cur {
+            if h == hwnd {
+                return false;
+            }
+            let mut class = [0u16; 32];
+            let n = GetClassNameW(h, &mut class).max(0) as usize;
+            if String::from_utf16_lossy(&class[..n]) == "WorkerW" {
+                return true;
+            }
+            cur = GetWindow(h, GW_HWNDNEXT).ok();
+        }
+        false
+    }
+}
+
+/// Puts any wallpaper window that Explorer covered back right behind the icons.
+fn lift_buried(app: &AppHandle) {
+    let Ok(progman) = (unsafe { FindWindowW(w!("Progman"), None) }) else { return };
+    let Ok(icons) = (unsafe { FindWindowExW(Some(progman), None, w!("SHELLDLL_DefView"), None) }) else { return };
+    let targets = TARGETS.lock().unwrap().clone();
+    let hwnds: Vec<HWND> = targets
+        .iter()
+        .filter_map(|(label, _)| app.get_webview_window(label)?.hwnd().ok())
+        .map(|h| HWND(h.0 as _))
+        .filter(|&h| unsafe { GetParent(h).ok() } == Some(progman) && buried(progman, h))
+        .collect();
+    if hwnds.is_empty() {
+        return;
+    }
+    let (icons, hwnds) = (icons.0 as isize, hwnds.into_iter().map(|h| h.0 as isize).collect::<Vec<_>>());
+    let _ = app.run_on_main_thread(move || unsafe {
+        for h in hwnds {
+            let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE;
+            let _ = SetWindowPos(HWND(h as _), Some(HWND(icons as _)), 0, 0, 0, 0, flags);
         }
     });
 }
@@ -195,13 +246,9 @@ unsafe extern "system" fn find_worker(hwnd: HWND, lparam: LPARAM) -> BOOL {
     BOOL(1)
 }
 
-fn attach(win: &WebviewWindow, label: &str, [x, y, w, h]: [i32; 4]) {
+fn attach(win: &WebviewWindow, label: &str, [x, y, w, h]: [i32; 4], (parent, behind): (HWND, Option<HWND>)) {
     let Ok(raw) = win.hwnd() else { return };
     let hwnd = HWND(raw.0 as _);
-    let Some((parent, behind)) = wallpaper_host() else {
-        eprintln!("wallpaper: desktop layer not found");
-        return;
-    };
     unsafe {
         // Already in place: leave it alone, re-parenting makes it flicker.
         let mut r = RECT::default();
@@ -222,6 +269,10 @@ fn attach(win: &WebviewWindow, label: &str, [x, y, w, h]: [i32; 4]) {
             let vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
             let flags = SWP_NOACTIVATE | SWP_SHOWWINDOW | if behind.is_none() { SWP_NOZORDER } else { Default::default() };
             let _ = SetWindowPos(hwnd, behind, x - vx, y - vy, w, h, flags);
+        } else if behind.is_some() {
+            // In place, but another window's attach may have made Explorer
+            // lift its wallpaper over this one: restore the order.
+            let _ = SetWindowPos(hwnd, behind, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         }
     }
 
@@ -266,7 +317,8 @@ fn covered([x, y, w, h]: [i32; 4]) -> bool {
     }
 }
 
-/// Tells each wallpaper window to pause while it cannot be seen.
+/// Tells each wallpaper window to pause while it cannot be seen, and keeps the
+/// windows above Explorer's own wallpaper.
 pub fn spawn_watcher(app: AppHandle) {
     let _ = std::thread::Builder::new().name("wallpaper-watch".into()).spawn(move || {
         let mut last: HashMap<String, bool> = HashMap::new();
@@ -278,6 +330,7 @@ pub fn spawn_watcher(app: AppHandle) {
                 s.wallpaper_enabled && s.wallpaper_pause_covered
             };
             let targets = TARGETS.lock().unwrap().clone();
+            lift_buried(&app);
             last.retain(|label, _| targets.iter().any(|(l, _)| l == label));
             for (label, r) in targets {
                 let now = pause_enabled && covered(r);
