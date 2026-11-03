@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 
 import { Glass } from "./Glass/Glass";
-import { BackIcon, GearIcon, NoteIcon, WidgetIcon } from "./Icons";
+import { BackIcon, BugIcon, DownloadIcon, GearIcon, GithubIcon, LinkIcon, NoteIcon, RefreshIcon, WidgetIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { ActionButton, Row, Section, Segmented, Slider, Toggle, ColorField } from "./settings/controls";
 import { LyricStyleEditor, SceneEditor } from "./settings/editors";
@@ -32,6 +33,7 @@ import {
 } from "../core/style";
 import type { MonitorInfo, Settings, ThemeSetting } from "../core/types";
 import { openView, useView } from "../core/ui";
+import { checkForUpdate, installUpdate, openLink, REPO_URL, useUpdate } from "../core/update";
 
 type Tab = "general" | "main" | "widget" | "wallpaper" | "sync" | "about";
 
@@ -114,7 +116,7 @@ function Page({ closing }: { closing: boolean }) {
             {tab === "widget" && <WidgetTab s={settings} />}
             {tab === "wallpaper" && <WallpaperTab s={settings} />}
             {tab === "sync" && <SyncTab s={settings} />}
-            {tab === "about" && <About />}
+            {tab === "about" && <About s={settings} />}
           </div>
         </div>
       </main>
@@ -541,17 +543,108 @@ function SyncTab({ s }: { s: Settings }) {
   );
 }
 
-function About() {
+const LINKS: [string, string, ReactNode][] = [
+  ["GitHub", REPO_URL, <GithubIcon size={16} key="g" />],
+  ["Все версии", `${REPO_URL}/releases`, <DownloadIcon size={16} key="r" />],
+  ["Сообщить о проблеме", `${REPO_URL}/issues/new`, <BugIcon size={16} key="b" />],
+  ["lrclib.net", "https://lrclib.net", <LinkIcon size={15} key="l" />],
+  ["Genius", "https://genius.com", <LinkIcon size={15} key="n" />],
+];
+
+const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
+const date = (iso: string) => (iso ? new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }) : "");
+
+function About({ s }: { s: Settings }) {
+  const u = useUpdate();
+  const [version, setVersion] = useState("");
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => {});
+  }, []);
+  const busy = u.status === "checking" || u.status === "downloading" || u.status === "installing";
+
+  let status: ReactNode;
+  switch (u.status) {
+    case "checking":
+      status = "Проверяем обновления…";
+      break;
+    case "latest":
+      status = "У вас последняя версия";
+      break;
+    case "available":
+      status = (
+        <>
+          Доступна версия <b>{u.info!.version}</b>
+          {u.info!.published && <span className="sw-update-meta"> · {date(u.info!.published)}</span>}
+          {u.info!.size > 0 && <span className="sw-update-meta"> · {mb(u.info!.size)}</span>}
+        </>
+      );
+      break;
+    case "downloading":
+      status = `Скачиваем обновление… ${Math.round(u.progress * 100)}%`;
+      break;
+    case "installing":
+      status = "Устанавливаем, MUSE сейчас перезапустится";
+      break;
+    case "error":
+      status = <span className="sw-update-error">Не получилось: {u.error}</span>;
+      break;
+    default:
+      status = "Обновления приходят с GitHub";
+  }
+
   return (
-    <div className="sw-about">
-      <Logo size={112} className="sw-about-logo" />
-      <h2>MUSE</h2>
-      <p className="sw-about-version">Версия 0.2.1</p>
-      <p>Синхронизированный текст песен для Windows: в окне, на рабочем столе и вместо обоев.</p>
-      <p className="sw-about-small">
-        Трек определяется через системные медиа-контролы Windows. Тексты: lrclib.net, затем Genius. Свои тексты и тайминги хранятся локально.
+    <>
+      <div className="sw-about">
+        <Logo size={112} className="sw-about-logo" />
+        <h2>MUSE</h2>
+        <p className="sw-about-version">Версия {version || "…"}</p>
+        <p>Синхронизированный текст песен для Windows: в окне, на рабочем столе и вместо обоев.</p>
+      </div>
+
+      <Section title="Обновления">
+        <div className={`sw-update is-${u.status}`}>
+          <div className="sw-update-status">{status}</div>
+          <div className="sw-update-buttons">
+            {u.status === "available" ? (
+              <button className="link-button link-button-primary" onClick={installUpdate}>
+                <DownloadIcon size={15} /> Обновить
+              </button>
+            ) : (
+              <button className="link-button" disabled={busy} onClick={checkForUpdate}>
+                <RefreshIcon size={15} className={u.status === "checking" ? "is-spinning" : ""} /> Проверить
+              </button>
+            )}
+          </div>
+          {(u.status === "downloading" || u.status === "installing") && (
+            <div className="sw-update-bar">
+              <span style={{ transform: `scaleX(${u.progress})` }} />
+            </div>
+          )}
+          {u.status === "available" && u.info!.notes && <div className="sw-update-notes">{u.info!.notes}</div>}
+        </div>
+        <Toggle
+          label="Проверять обновления автоматически"
+          hint="Раз в несколько часов; о новой версии появится уведомление"
+          value={s.updateCheck}
+          onChange={(updateCheck) => updateSettings({ updateCheck })}
+        />
+      </Section>
+
+      <Section title="Ссылки">
+        <div className="sw-links">
+          {LINKS.map(([label, url, icon]) => (
+            <button key={url} className="sw-link" onClick={() => openLink(url)}>
+              {icon}
+              {label}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <p className="sw-about-small sw-about-foot">
+        Трек определяется через системные медиа-контролы Windows. Тексты: lrclib.net, затем Genius. Свои тексты и тайминги хранятся только на этом компьютере.
       </p>
-    </div>
+    </>
   );
 }
 

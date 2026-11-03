@@ -49,6 +49,8 @@ pub struct Settings {
     pub autostart: bool,
     /// The close button hides the main window to the tray instead of quitting.
     pub close_to_tray: bool,
+    /// Look for new versions on GitHub in the background.
+    pub update_check: bool,
 }
 
 impl Default for Settings {
@@ -77,6 +79,7 @@ impl Default for Settings {
             bg_fps: 30,
             autostart: false,
             close_to_tray: true,
+            update_check: true,
         }
     }
 }

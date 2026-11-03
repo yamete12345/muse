@@ -56,6 +56,8 @@ export interface Settings {
   autostart: boolean;
   /** The close button hides to the tray instead of quitting. */
   closeToTray: boolean;
+  /** Look for new versions on GitHub in the background. */
+  updateCheck: boolean;
 }
 
 export interface MonitorInfo {
