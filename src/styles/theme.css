@@ -8,7 +8,7 @@
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --app-bg: #161218;
+  --app-bg: #0c0e10;
   --text-rgb: 255, 255, 255;
   --muted: rgba(255, 255, 255, 0.62);
   --faint: rgba(255, 255, 255, 0.38);
@@ -32,27 +32,27 @@
   --glass-sheen-hot: rgba(255, 255, 255, 0.12);
   --glass-brightness: 1.08;
 
-  --widget-tint: rgba(10, 8, 14, 0.22);
+  --widget-tint: rgba(11, 13, 15, 0.22);
   --widget-text-shadow: 0 1px 14px rgba(0, 0, 0, 0.5);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --app-bg: #ece7ef;
-  --text-rgb: 24, 18, 32;
-  --muted: rgba(24, 18, 32, 0.58);
-  --faint: rgba(24, 18, 32, 0.36);
+  --app-bg: #e8eaeb;
+  --text-rgb: 16, 19, 22;
+  --muted: rgba(16, 19, 22, 0.58);
+  --faint: rgba(16, 19, 22, 0.36);
   --unsung: 0.28;
   --glow-rgb: 255, 255, 255;
   --line-glow-a: 0.5;
-  --track: rgba(24, 18, 32, 0.14);
-  --track-fill: rgba(24, 18, 32, 0.82);
+  --track: rgba(16, 19, 22, 0.14);
+  --track-fill: rgba(16, 19, 22, 0.82);
 
   --glass-tint: rgba(255, 255, 255, 0.34);
   --glass-tint-hover: rgba(255, 255, 255, 0.5);
   --glass-tint-active: rgba(255, 255, 255, 0.68);
-  --glass-shadow: rgba(50, 24, 70, 0.22);
-  --glass-shadow-near: rgba(50, 24, 70, 0.1);
+  --glass-shadow: rgba(14, 22, 28, 0.22);
+  --glass-shadow-near: rgba(14, 22, 28, 0.1);
   --glass-rim-top: rgba(255, 255, 255, 0.95);
   --glass-rim-bottom: rgba(0, 0, 0, 0.05);
   --glass-edge-strong: rgba(255, 255, 255, 1);

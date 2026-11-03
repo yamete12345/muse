@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "mutxt",
+  "productName": "MUSE",
   "version": "0.1.0",
-  "identifier": "com.mutxt.app",
+  "identifier": "com.muse.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "mutxt",
+        "title": "MUSE",
         "width": 1100,
         "height": 760,
         "minWidth": 520,
@@ -22,7 +22,7 @@
         "decorations": false,
         "shadow": true,
         "visible": false,
-        "backgroundColor": "#161218"
+        "backgroundColor": "#0c0e10"
       }
     ],
     "security": {

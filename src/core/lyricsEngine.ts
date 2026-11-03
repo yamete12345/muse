@@ -88,6 +88,22 @@ export class LyricsEngine {
     document.fonts?.ready.then(() => this.layout(true));
   }
 
+  private suspended = false;
+
+  /** Skips all per-frame work while the view is hidden, then catches up at once. */
+  setSuspended(value: boolean) {
+    if (value === this.suspended) return;
+    this.suspended = value;
+    if (value || this.views.length === 0) return;
+    const a = this.findActive(this.time());
+    if (a !== this.active) {
+      const prev = this.views[this.active];
+      if (prev) this.release(prev);
+      this.active = a;
+    }
+    this.layout(true);
+  }
+
   destroy() {
     this.unsubscribe();
     this.ro.disconnect();
@@ -273,7 +289,7 @@ export class LyricsEngine {
   }
 
   private frame = (ts: number, dt: number) => {
-    if (this.views.length === 0) return;
+    if (this.suspended || this.views.length === 0) return;
     const t = this.time();
     const a = this.findActive(t);
     if (a !== this.active) this.activate(a);

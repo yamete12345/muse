@@ -20,7 +20,7 @@ export function WidgetWindow() {
   const clickThrough = useStore((s) => s.settings.widgetClickThrough);
 
   const panel = useMemo(() => {
-    const rgb = hexToRgb(look.tint) ?? "10, 8, 14";
+    const rgb = hexToRgb(look.tint) ?? "11, 13, 15";
     const shadowColor = theme === "light" ? "255, 255, 255" : "0, 0, 0";
     const tinted = look.background === "tint" || look.background === "cover";
     return {

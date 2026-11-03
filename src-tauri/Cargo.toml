@@ -1,11 +1,11 @@
 [package]
-name = "mutxt"
+name = "muse"
 version = "0.1.0"
 description = "Synced lyrics in the style of Apple Music"
 edition = "2021"
 
 [lib]
-name = "mutxt_lib"
+name = "muse_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

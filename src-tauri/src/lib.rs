@@ -30,13 +30,13 @@ async fn set_settings(app: AppHandle, patch: serde_json::Value) -> Result<Settin
 }
 
 #[tauri::command]
-async fn set_widget_size(app: AppHandle, width: f64, height: f64) {
-    widget::resize(&app, width, height);
+async fn set_widget_geometry(app: AppHandle, x: f64, y: f64, width: f64, height: f64) {
+    widget::set_geometry(&app, x, y, width, height);
 }
 
 #[tauri::command]
-async fn get_widget_size(app: AppHandle) -> Option<[f64; 2]> {
-    widget::size(&app)
+async fn get_widget_geometry(app: AppHandle) -> Option<widget::Geometry> {
+    widget::geometry(&app)
 }
 
 #[tauri::command]
@@ -111,6 +111,18 @@ fn shortcuts() -> [(Shortcut, &'static str); 3] {
     ]
 }
 
+/// The app used to be called mutxt: carry its settings, lyrics and offsets over.
+fn migrate_data_dir(dir: &std::path::Path) {
+    if dir.exists() {
+        return;
+    }
+    if let Some(old) = dir.parent().map(|p| p.join("com.mutxt.app")) {
+        if old.is_dir() {
+            let _ = std::fs::rename(&old, dir);
+        }
+    }
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))
@@ -136,13 +148,14 @@ pub fn run() {
         )
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
+            migrate_data_dir(&data_dir);
             std::fs::create_dir_all(&data_dir)?;
 
             let mut settings = settings::load(&data_dir);
             settings.autostart = app.autolaunch().is_enabled().unwrap_or(false);
 
             let http = reqwest::Client::builder()
-                .user_agent(concat!("mutxt/", env!("CARGO_PKG_VERSION"), " (https://github.com/mutxt)"))
+                .user_agent(concat!("MUSE/", env!("CARGO_PKG_VERSION"), " (https://github.com/yamete12345/muse)"))
                 .timeout(std::time::Duration::from_secs(10))
                 .build()?;
 
@@ -175,9 +188,17 @@ pub fn run() {
         .on_window_event(|window, event| match (window.label(), event) {
             ("main", WindowEvent::CloseRequested { api, .. }) => {
                 api.prevent_close();
-                let _ = window.hide();
+                let to_tray = window.app_handle().state::<AppState>().settings.lock().unwrap().close_to_tray;
+                if to_tray {
+                    let _ = window.hide();
+                } else {
+                    window.app_handle().exit(0);
+                }
             }
-            (widget::LABEL, WindowEvent::Moved(_) | WindowEvent::Resized(_)) => widget::remember_bounds(window),
+            (widget::LABEL, WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
+                widget::remember_bounds(window);
+                let _ = window.app_handle().emit_to("main", "widget:moved", ());
+            }
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
@@ -187,8 +208,8 @@ pub fn run() {
             retry_lyrics,
             save_user_lyrics,
             delete_user_lyrics,
-            set_widget_size,
-            get_widget_size,
+            set_widget_geometry,
+            get_widget_geometry,
             list_monitors,
             media::commands::media_toggle,
             media::commands::media_next,
@@ -196,7 +217,7 @@ pub fn run() {
             media::commands::media_seek,
         ])
         .build(tauri::generate_context!())
-        .expect("failed to build mutxt");
+        .expect("failed to build MUSE");
 
     app.run(|app, event| {
         if let RunEvent::Exit = event {

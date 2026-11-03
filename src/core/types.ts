@@ -47,6 +47,18 @@ export interface Settings {
   simpleGlass: boolean;
   bgFps: number;
   autostart: boolean;
+  /** The close button hides to the tray instead of quitting. */
+  closeToTray: boolean;
+}
+
+/** Widget bounds in logical pixels within its monitor's work area. */
+export interface WidgetGeometry {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  areaWidth: number;
+  areaHeight: number;
 }
 
 export interface Snapshot {

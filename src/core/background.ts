@@ -300,12 +300,22 @@ function fallbackCover(): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = c.height = TEX;
   const ctx = c.getContext("2d")!;
-  const g = ctx.createLinearGradient(0, 0, TEX, TEX);
-  g.addColorStop(0, "#5b3a7a");
-  g.addColorStop(0.5, "#2a3f73");
-  g.addColorStop(1, "#7a3a52");
-  ctx.fillStyle = g;
+  // Monochrome idle look: near-black with slate and graphite haze.
+  ctx.fillStyle = "#0b0d0f";
   ctx.fillRect(0, 0, TEX, TEX);
+  const blobs: [number, number, number, string][] = [
+    [0.18, 0.3, 0.55, "rgba(64, 86, 96, 0.95)"],
+    [0.7, 0.62, 0.5, "rgba(78, 80, 82, 0.85)"],
+    [0.35, 0.85, 0.45, "rgba(50, 70, 80, 0.9)"],
+    [0.9, 0.12, 0.35, "rgba(44, 50, 54, 0.8)"],
+  ];
+  for (const [x, y, r, color] of blobs) {
+    const g = ctx.createRadialGradient(x * TEX, y * TEX, 0, x * TEX, y * TEX, r * TEX);
+    g.addColorStop(0, color);
+    g.addColorStop(1, "rgba(11, 13, 15, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, TEX, TEX);
+  }
   return c;
 }
 

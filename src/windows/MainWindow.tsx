@@ -82,7 +82,7 @@ export function MainWindow() {
       <Background light={theme === "light"} scene={look} />
       <div className="lyrics-tab" aria-hidden={settingsOpen}>
         <main className="stage">
-          <LyricsView mode="main" look={look.lyrics} />
+          <LyricsView mode="main" look={look.lyrics} suspended={settingsOpen} />
         </main>
         <TitleBar showTrack={look.showHeader} />
         {look.player !== "hidden" && <PlayerBar />}

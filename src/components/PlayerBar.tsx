@@ -29,11 +29,16 @@ export function PlayerBar() {
   // Progress is written straight to the DOM every frame; React stays idle.
   useEffect(() => {
     let lastSec = -1;
+    let lastF = -1;
     return onFrame(() => {
       const d = clock.durationMs;
       const pos = scrubRef.current ?? clock.position();
       const f = d > 0 ? Math.min(1, pos / d) : 0;
-      if (fill.current) fill.current.style.transform = `scaleX(${f.toFixed(5)})`;
+      // Skip sub-pixel changes: no style work on frames where nothing moves.
+      if (fill.current && Math.abs(f - lastF) > 0.0002) {
+        lastF = f;
+        fill.current.style.transform = `scaleX(${f.toFixed(5)})`;
+      }
       const sec = Math.floor(pos / 1000);
       if (sec !== lastSec && elapsed.current && remaining.current) {
         lastSec = sec;

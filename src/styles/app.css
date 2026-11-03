@@ -782,7 +782,11 @@
 }
 
 .switch.is-on {
-  background: #34c759;
+  background: rgba(var(--text-rgb), 0.86);
+}
+
+.switch.is-on .switch-knob {
+  background: var(--app-bg);
 }
 
 .switch-knob {

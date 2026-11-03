@@ -103,6 +103,20 @@
   justify-content: center;
 }
 
+.lx-root[data-align="right"] .lx-text {
+  margin-left: auto;
+  text-align: right;
+  transform-origin: 100% 50%;
+}
+
+.lx-root[data-align="right"] .lx-gap {
+  justify-content: flex-end;
+}
+
+.lx-root[data-align="right"] .lx-dots {
+  transform-origin: calc(100% - var(--lx-size) * 0.5) 50%;
+}
+
 /* Hover target for click-to-seek. */
 .lx-root.is-interactive .lx-line {
   cursor: pointer;

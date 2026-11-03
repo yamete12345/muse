@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
     <linearGradient id="bg" x1="0.1" y1="0" x2="0.9" y2="1">
-      <stop offset="0" stop-color="#ff6b8b"/>
-      <stop offset="0.48" stop-color="#a24bff"/>
-      <stop offset="1" stop-color="#3b2fb8"/>
+      <stop offset="0" stop-color="#3a4a52"/>
+      <stop offset="0.5" stop-color="#1a2126"/>
+      <stop offset="1" stop-color="#0b0d0f"/>
     </linearGradient>
-    <radialGradient id="blob" cx="0.78" cy="0.82" r="0.55">
-      <stop offset="0" stop-color="#38d6ff" stop-opacity="0.75"/>
-      <stop offset="1" stop-color="#38d6ff" stop-opacity="0"/>
+    <radialGradient id="blob" cx="0.8" cy="0.84" r="0.6">
+      <stop offset="0" stop-color="#5d6a70" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#5d6a70" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.5"/>
+      <stop offset="0" stop-color="#fff" stop-opacity="0.34"/>
       <stop offset="0.42" stop-color="#fff" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="fill" x1="0" y1="0" x2="1" y2="0">
@@ -27,9 +27,9 @@
   <rect x="64" y="64" width="896" height="896" rx="236" fill="url(#bg)"/>
   <rect x="64" y="64" width="896" height="896" rx="236" fill="url(#blob)"/>
   <rect x="64" y="64" width="896" height="896" rx="236" fill="url(#sheen)"/>
-  <rect x="66" y="66" width="892" height="892" rx="234" fill="none" stroke="#fff" stroke-opacity="0.35" stroke-width="4"/>
-  <rect x="232" y="300" width="560" height="108" rx="54" fill="#fff" opacity="0.55" filter="url(#glow)"/>
+  <rect x="66" y="66" width="892" height="892" rx="234" fill="none" stroke="#fff" stroke-opacity="0.22" stroke-width="4"/>
+  <rect x="232" y="300" width="560" height="108" rx="54" fill="#fff" opacity="0.5" filter="url(#glow)"/>
   <rect x="232" y="300" width="560" height="108" rx="54" fill="url(#fill)"/>
-  <rect x="232" y="478" width="430" height="96" rx="48" fill="#fff" opacity="0.4" filter="url(#soft)"/>
-  <rect x="232" y="640" width="300" height="96" rx="48" fill="#fff" opacity="0.2" filter="url(#soft)"/>
+  <rect x="232" y="478" width="430" height="96" rx="48" fill="#fff" opacity="0.36" filter="url(#soft)"/>
+  <rect x="232" y="640" width="300" height="96" rx="48" fill="#fff" opacity="0.18" filter="url(#soft)"/>
 </svg>
