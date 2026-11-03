@@ -31,6 +31,7 @@ const defaultSettings: Settings = {
   simpleGlass: false,
   bgFps: 30,
   autostart: false,
+  closeToTray: true,
 };
 
 /** Applies a settings change locally right away; Rust confirms via `settings:changed`. */

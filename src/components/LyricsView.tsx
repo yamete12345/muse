@@ -21,10 +21,12 @@ interface CanvasProps {
   center?: boolean;
   interactive?: boolean;
   hidden?: boolean;
+  /** Pause the engine, e.g. while another tab covers it. */
+  suspended?: boolean;
 }
 
 /** Hosts a LyricsEngine and keeps it in sync with the appearance settings. */
-export function LyricsCanvas({ items, time, look, className, center, interactive, hidden }: CanvasProps) {
+export function LyricsCanvas({ items, time, look, className, center, interactive, hidden, suspended }: CanvasProps) {
   const root = useRef<HTMLDivElement>(null);
   const engine = useRef<LyricsEngine | null>(null);
   const timeRef = useRef(time);
@@ -43,6 +45,7 @@ export function LyricsCanvas({ items, time, look, className, center, interactive
   const tuning = useMemo(() => engineTuning(look), [look]);
   useEffect(() => engine.current?.configure(tuning), [tuning, center, interactive]);
   useEffect(() => engine.current?.setItems(items), [items, center, interactive]);
+  useEffect(() => engine.current?.setSuspended(!!suspended), [suspended, center, interactive]);
 
   return <div ref={root} className={className} data-align={look.align} style={{ visibility: hidden ? "hidden" : "visible" }} />;
 }
@@ -51,9 +54,10 @@ interface Props {
   mode: LyricsMode;
   look: LyricStyle;
   style?: CSSProperties;
+  suspended?: boolean;
 }
 
-export function LyricsView({ mode, look, style }: Props) {
+export function LyricsView({ mode, look, style, suspended }: Props) {
   const hasMedia = useStore((s) => !!s.media && !!s.media.title);
   const lyrics = useStore((s) => s.lyrics);
   const key = useStore((s) => s.media?.key);
@@ -108,6 +112,7 @@ export function LyricsView({ mode, look, style }: Props) {
         center={mode === "widget"}
         interactive={isMain}
         hidden={!synced}
+        suspended={suspended}
       />
       {!synced && status}
     </div>

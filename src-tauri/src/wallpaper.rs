@@ -63,7 +63,7 @@ pub fn teardown(app: &AppHandle) {
 
 fn create(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
-        .title("mutxt wallpaper")
+        .title("MUSE wallpaper")
         .decorations(false)
         .shadow(false)
         .skip_taskbar(true)

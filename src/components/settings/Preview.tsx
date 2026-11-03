@@ -20,10 +20,12 @@ interface Props {
   variant: "main" | "widget" | "wallpaper";
   scene?: SceneStyle;
   widget?: WidgetStyle;
+  /** Wallpaper only: the lyrics column, fractions of the width. */
+  column?: { left: number; width: number };
 }
 
 /** A live, looping sample of the chosen appearance. */
-export function Preview({ look, variant, scene, widget }: Props) {
+export function Preview({ look, variant, scene, widget, column }: Props) {
   const cover = useStore((s) => s.cover);
   const accent = useCoverAccent();
   const t0 = useRef(performance.now());
@@ -35,7 +37,10 @@ export function Preview({ look, variant, scene, widget }: Props) {
     return { ...look, fontSize: look.fontSize > 0 ? Math.round(look.fontSize * 0.55) : 30 };
   }, [look, variant]);
 
-  const vars = useMemo(() => lyricVars(previewLook, accent) as CSSProperties, [previewLook, accent]);
+  const vars = useMemo(() => {
+    const v = lyricVars(previewLook, accent) as CSSProperties;
+    return column ? { ...v, left: `${column.left * 100}%`, width: `${column.width * 100}%`, right: "auto" } : v;
+  }, [previewLook, accent, column?.left, column?.width]);
 
   let backdrop: CSSProperties;
   if (scene?.background === "solid") {
@@ -44,7 +49,7 @@ export function Preview({ look, variant, scene, widget }: Props) {
     const sat = scene?.bgSaturation ?? 1;
     const bright = scene?.bgBrightness ?? 1;
     backdrop = {
-      backgroundImage: cover ? `url(${cover})` : "linear-gradient(135deg, #5b3a7a, #2a3f73 50%, #7a3a52)",
+      backgroundImage: cover ? `url(${cover})` : "linear-gradient(135deg, #2a3a42, #0d0f11 55%, #34383b)",
       filter: `blur(40px) saturate(${1.3 * sat}) brightness(${0.62 * bright})`,
     };
   }
@@ -54,9 +59,9 @@ export function Preview({ look, variant, scene, widget }: Props) {
       ? {
           background:
             widget.background === "tint" || widget.background === "cover"
-              ? `rgba(${hexToRgb(widget.tint) ?? "10, 8, 14"}, ${widget.opacity})`
+              ? `rgba(${hexToRgb(widget.tint) ?? "11, 13, 15"}, ${widget.opacity})`
               : widget.background === "acrylic"
-                ? "rgba(30, 30, 36, 0.55)"
+                ? "rgba(28, 31, 34, 0.55)"
                 : "transparent",
           borderRadius: widget.radius,
           backdropFilter: widget.background === "acrylic" ? "blur(20px)" : undefined,

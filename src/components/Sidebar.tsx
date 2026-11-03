@@ -16,6 +16,7 @@ export function Sidebar({ light }: { light: boolean }) {
   const panel = usePanel();
   const view = useView();
   const widget = useStore((s) => s.settings.widgetEnabled);
+  const toTray = useStore((s) => s.settings.closeToTray);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -37,7 +38,7 @@ export function Sidebar({ light }: { light: boolean }) {
               <RailButton small label="Развернуть" onClick={() => win.toggleMaximize()}>
                 <MaximizeIcon size={14} />
               </RailButton>
-              <RailButton small danger label="Скрыть в трей" onClick={() => win.hide()}>
+              <RailButton small danger label={toTray ? "Скрыть в трей" : "Закрыть MUSE"} onClick={() => win.close()}>
                 <CloseIcon size={15} />
               </RailButton>
             </div>

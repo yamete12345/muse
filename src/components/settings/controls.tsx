@@ -55,7 +55,7 @@ export function Toggle({
   );
 }
 
-export function Segmented<T extends string | number>({
+export function Segmented<T extends string | number | boolean>({
   value,
   options,
   onChange,
@@ -126,7 +126,7 @@ export function Slider({
   );
 }
 
-const SWATCHES = ["#ffffff", "#ff6b8b", "#ff9f5a", "#ffd65a", "#7cf29c", "#4fd8ff", "#7d8bff", "#c77dff", "#ff7ad9"];
+const SWATCHES = ["#ffffff", "#c9d6dc", "#8fa6b0", "#ff6b8b", "#ffd65a", "#7cf29c", "#4fd8ff", "#7d8bff", "#c77dff"];
 
 /** Accent picker: automatic, from the cover, presets, or any custom color. */
 export function ColorField({

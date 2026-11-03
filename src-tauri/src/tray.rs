@@ -62,7 +62,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let menu = build_menu(app)?;
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip("mutxt")
+        .tooltip("MUSE")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| {

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 520" width="1280" height="520">
+  <defs>
+    <radialGradient id="h1" cx="0.18" cy="0.25" r="0.6">
+      <stop offset="0" stop-color="#2f444e" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#2f444e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="h2" cx="0.82" cy="0.8" r="0.55">
+      <stop offset="0" stop-color="#3d4043" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#3d4043" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="h3" cx="0.55" cy="1.05" r="0.45">
+      <stop offset="0" stop-color="#22343c" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#22343c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tile" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#3a4a52"/>
+      <stop offset="0.5" stop-color="#1a2126"/>
+      <stop offset="1" stop-color="#0b0d0f"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.34"/>
+      <stop offset="0.42" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fill" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0.62" stop-color="#fff"/>
+      <stop offset="0.78" stop-color="#fff" stop-opacity="0.45"/>
+    </linearGradient>
+    <linearGradient id="sung" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0.58" stop-color="#fff"/>
+      <stop offset="0.7" stop-color="#fff" stop-opacity="0.32"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-80%" width="160%" height="260%">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+    <filter id="textglow" x="-10%" y="-60%" width="120%" height="220%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="b1"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <filter id="b2"><feGaussianBlur stdDeviation="3"/></filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="7"/></filter>
+  </defs>
+
+  <rect width="1280" height="520" rx="28" fill="#0b0d0f"/>
+  <rect width="1280" height="520" rx="28" fill="url(#h1)"/>
+  <rect width="1280" height="520" rx="28" fill="url(#h2)"/>
+  <rect width="1280" height="520" rx="28" fill="url(#h3)"/>
+
+  <!-- Logo -->
+  <g transform="translate(80 64) scale(0.17)">
+    <rect x="64" y="64" width="896" height="896" rx="236" fill="url(#tile)"/>
+    <rect x="64" y="64" width="896" height="896" rx="236" fill="url(#sheen)"/>
+    <rect x="66" y="66" width="892" height="892" rx="234" fill="none" stroke="#fff" stroke-opacity="0.22" stroke-width="4"/>
+    <rect x="232" y="300" width="560" height="108" rx="54" fill="#fff" opacity="0.5" filter="url(#glow)"/>
+    <rect x="232" y="300" width="560" height="108" rx="54" fill="url(#fill)"/>
+    <rect x="232" y="478" width="430" height="96" rx="48" fill="#fff" opacity="0.36" filter="url(#soft)"/>
+    <rect x="232" y="640" width="300" height="96" rx="48" fill="#fff" opacity="0.18" filter="url(#soft)"/>
+  </g>
+
+  <g font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" fill="#fff">
+    <text x="92" y="330" font-size="112" font-weight="800" letter-spacing="-3">MUSE</text>
+    <text x="98" y="378" font-size="24" font-weight="500" fill-opacity="0.6">Синхронизированный текст песен для Windows</text>
+
+    <!-- Lyrics sample -->
+    <text x="690" y="150" font-size="38" font-weight="760" fill-opacity="0.22" filter="url(#b2)">Город медленно молчит</text>
+    <text x="690" y="244" font-size="46" font-weight="780" fill-opacity="0.5" filter="url(#textglow)">Свет ложится на стекло</text>
+    <text x="690" y="244" font-size="46" font-weight="780" fill="url(#sung)">Свет ложится на стекло</text>
+    <text x="690" y="318" font-size="38" font-weight="760" fill-opacity="0.3" filter="url(#b1)">Мы поём, и всё легко</text>
+    <text x="690" y="384" font-size="38" font-weight="760" fill-opacity="0.18" filter="url(#b2)">Пусть мелодия звучит</text>
+  </g>
+</svg>

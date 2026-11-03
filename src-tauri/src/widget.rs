@@ -1,9 +1,8 @@
 //! Desktop widget: a transparent window that lives on the wallpaper layer.
 
 use tauri::window::{Effect, EffectsBuilder};
-use tauri::{
-    AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
-};
+use serde::Serialize;
+use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use windows::core::w;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetWindowLongPtrW, GWLP_HWNDPARENT};
@@ -54,29 +53,69 @@ fn set_layer(win: &WebviewWindow, on_top: bool) {
     }
 }
 
-/// Resizes the widget (logical pixels) and remembers the new bounds.
-pub fn resize(app: &AppHandle, width: f64, height: f64) {
-    let Some(win) = app.get_webview_window(LABEL) else { return };
-    let _ = win.set_size(LogicalSize::new(width.clamp(200.0, 2400.0), height.clamp(100.0, 1600.0)));
-    if let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) {
-        let state = app.state::<AppState>();
-        let mut s = state.settings.lock().unwrap();
-        s.widget_bounds = Some([pos.x, pos.y, size.width as i32, size.height as i32]);
-        crate::settings::save(&state.data_dir, &s);
-    }
+const MIN_W: f64 = 240.0;
+const MIN_H: f64 = 110.0;
+
+/// Widget bounds in logical pixels, relative to its monitor's work area.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Geometry {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub area_width: f64,
+    pub area_height: f64,
 }
 
-/// Current widget size in logical pixels.
-pub fn size(app: &AppHandle) -> Option<[f64; 2]> {
+/// The work area (screen minus taskbar) of the widget's monitor, physical pixels.
+fn work_area(win: &WebviewWindow) -> Option<(PhysicalPosition<i32>, PhysicalSize<u32>, f64)> {
+    let m = win.current_monitor().ok().flatten().or_else(|| win.primary_monitor().ok().flatten())?;
+    let area = m.work_area();
+    Some((area.position, area.size, m.scale_factor()))
+}
+
+pub fn geometry(app: &AppHandle) -> Option<Geometry> {
     let win = app.get_webview_window(LABEL)?;
-    let scale = win.scale_factor().ok()?;
-    let s = win.outer_size().ok()?.to_logical::<f64>(scale);
-    Some([s.width, s.height])
+    let (origin, area, scale) = work_area(&win)?;
+    let pos = win.outer_position().ok()?;
+    let size = win.outer_size().ok()?;
+    Some(Geometry {
+        x: (pos.x - origin.x) as f64 / scale,
+        y: (pos.y - origin.y) as f64 / scale,
+        width: size.width as f64 / scale,
+        height: size.height as f64 / scale,
+        area_width: area.width as f64 / scale,
+        area_height: area.height as f64 / scale,
+    })
+}
+
+/// Moves and resizes the widget (logical pixels within the work area) and remembers it.
+pub fn set_geometry(app: &AppHandle, x: f64, y: f64, width: f64, height: f64) {
+    let Some(win) = app.get_webview_window(LABEL) else { return };
+    let Some((origin, area, scale)) = work_area(&win) else { return };
+    let (aw, ah) = (area.width as f64 / scale, area.height as f64 / scale);
+    let w = width.clamp(MIN_W, aw.max(MIN_W));
+    let h = height.clamp(MIN_H, ah.max(MIN_H));
+    let x = x.clamp(0.0, (aw - w).max(0.0));
+    let y = y.clamp(0.0, (ah - h).max(0.0));
+    let bounds = [
+        origin.x + (x * scale).round() as i32,
+        origin.y + (y * scale).round() as i32,
+        (w * scale).round() as i32,
+        (h * scale).round() as i32,
+    ];
+    let _ = win.set_size(PhysicalSize::new(bounds[2] as u32, bounds[3] as u32));
+    let _ = win.set_position(PhysicalPosition::new(bounds[0], bounds[1]));
+    let state = app.state::<AppState>();
+    let mut s = state.settings.lock().unwrap();
+    s.widget_bounds = Some(bounds);
+    crate::settings::save(&state.data_dir, &s);
 }
 
 fn create(app: &AppHandle, bounds: Option<[i32; 4]>) -> tauri::Result<WebviewWindow> {
     let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
-        .title("mutxt widget")
+        .title("MUSE widget")
         .decorations(false)
         .transparent(true)
         .shadow(false)
@@ -86,7 +125,7 @@ fn create(app: &AppHandle, bounds: Option<[i32; 4]>) -> tauri::Result<WebviewWin
         .focused(false)
         .visible(false)
         .inner_size(560.0, 260.0)
-        .min_inner_size(260.0, 120.0)
+        .min_inner_size(MIN_W, MIN_H)
         .build()?;
 
     match bounds {

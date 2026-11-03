@@ -13,7 +13,7 @@ export function TitleBar({ showTrack = true }: { showTrack?: boolean }) {
       <div className={`now ${hasTrack ? "" : "is-empty"}`} key={media?.key ?? "none"}>
         <div className="now-cover">{cover ? <img src={cover} alt="" draggable={false} /> : <Logo size={64} />}</div>
         <div className="now-text">
-          <div className="now-title">{media?.title || "mutxt"}</div>
+          <div className="now-title">{media?.title || "MUSE"}</div>
           <div className="now-artist">{media?.artist || "Ожидание музыки"}</div>
         </div>
       </div>

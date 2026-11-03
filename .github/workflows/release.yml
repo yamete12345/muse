@@ -1,0 +1,41 @@
+# Builds the Windows installer and attaches it to a draft GitHub release
+# whenever a version tag (v0.2.0, v1.0.0, ...) is pushed.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - run: npm test
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "MUSE ${{ github.ref_name }}"
+          releaseBody: "Установщик для Windows 10/11: скачайте MUSE_*_x64-setup.exe ниже."
+          releaseDraft: true

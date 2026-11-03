@@ -1,4 +1,4 @@
-import type { FillMode, FontChoice, LyricStyle, Motion, SceneStyle } from "../../core/style";
+import type { Align, FillMode, FontChoice, LyricStyle, Motion, SceneStyle } from "../../core/style";
 import { ColorField, Row, Section, Segmented, Slider, Toggle } from "./controls";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -11,9 +11,11 @@ interface LyricEditorProps {
   allowAutoSize?: boolean;
   /** When the surface follows the main window, only its own layout stays editable. */
   linked?: boolean;
+  /** The wallpaper sets alignment together with the column position. */
+  hideAlign?: boolean;
 }
 
-export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked }: LyricEditorProps) {
+export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked, hideAlign }: LyricEditorProps) {
   const auto = l.fontSize === 0;
   return (
     <>
@@ -35,16 +37,19 @@ export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked }: 
         {allowAutoSize && <Toggle label="Размер по окну" hint="Текст подстраивается под размер окна" value={auto} onChange={(v) => onChange({ fontSize: v ? 0 : 48 })} />}
         {!auto && <Slider label="Размер текста" value={l.fontSize} min={12} max={110} format={(v) => `${v} px`} onChange={(fontSize) => onChange({ fontSize })} />}
         <Slider label="Жирность" value={l.fontWeight} min={350} max={900} step={10} disabled={linked} onChange={(fontWeight) => onChange({ fontWeight })} />
-        <Row label="Выравнивание">
-          <Segmented<"left" | "center">
-            value={l.align}
-            onChange={(align) => onChange({ align })}
-            options={[
-              ["left", "Слева"],
-              ["center", "По центру"],
-            ]}
-          />
-        </Row>
+        {!hideAlign && (
+          <Row label="Выравнивание">
+            <Segmented<Align>
+              value={l.align}
+              onChange={(align) => onChange({ align })}
+              options={[
+                ["left", "Слева"],
+                ["center", "По центру"],
+                ["right", "Справа"],
+              ]}
+            />
+          </Row>
+        )}
         <Slider label="Межстрочный интервал" value={l.lineSpacing} min={0.3} max={2.4} step={0.05} format={times} disabled={linked} onChange={(lineSpacing) => onChange({ lineSpacing })} />
         <Slider label="Положение активной строки" hint="Сверху вниз" value={l.anchor} min={0.12} max={0.7} step={0.01} format={pct} onChange={(anchor) => onChange({ anchor })} />
       </Section>

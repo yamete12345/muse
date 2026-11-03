@@ -6,7 +6,8 @@ import { Logo } from "./Logo";
 import { ActionButton, Row, Section, Segmented, Slider, Toggle, ColorField } from "./settings/controls";
 import { LyricStyleEditor, SceneEditor } from "./settings/editors";
 import { Preview } from "./settings/Preview";
-import { getWidgetSize, listMonitors, setWidgetSize, updateSettings } from "../core/api";
+import { PresetPicker, ResetButton, WidgetPlacement } from "./settings/presets";
+import { listMonitors, updateSettings } from "../core/api";
 import { useStore } from "../core/store";
 import {
   DEFAULT_MAIN,
@@ -15,9 +16,13 @@ import {
   ownMain,
   ownWallpaper,
   ownWidget,
+  presetLyrics,
+  presetScene,
   resolveWallpaper,
   resolveWidget,
+  wallpaperColumn,
   type LyricStyle,
+  type Preset,
   type MainStyle,
   type WallpaperStyle,
   type WidgetBackground,
@@ -73,7 +78,7 @@ function Page({ closing }: { closing: boolean }) {
           <div className="sw-brand">
             <Logo size={34} />
             <div className="sw-brand-text">
-              <div className="sw-brand-name">mutxt</div>
+              <div className="sw-brand-name">MUSE</div>
               <div className="sw-brand-sub">Настройки</div>
             </div>
           </div>
@@ -92,10 +97,13 @@ function Page({ closing }: { closing: boolean }) {
       <main className="sw-main">
         <header className="sw-head" data-tauri-drag-region="deep">
           <h1 key={tab}>{TABS[idx][1]}</h1>
-          <button className="link-button" onClick={() => openView("lyrics")}>
-            <BackIcon size={15} />
-            К тексту
-          </button>
+          <div className="sw-head-buttons">
+            {RESETS[tab] && <ResetButton key={tab} label="Сбросить оформление" onReset={RESETS[tab]!} />}
+            <button className="link-button" onClick={() => openView("lyrics")}>
+              <BackIcon size={15} />
+              К тексту
+            </button>
+          </div>
         </header>
         <div className="sw-scroll">
           <div className="sw-content" key={tab}>
@@ -120,6 +128,35 @@ const setWidget = (s: Settings, p: Partial<WidgetStyle>) => updateSettings({ wid
 const setWidgetLyrics = (s: Settings, p: Partial<LyricStyle>) => setWidget(s, { lyrics: { ...ownWidget(s).lyrics, ...p } });
 const setWall = (s: Settings, p: Partial<WallpaperStyle>) => updateSettings({ wallpaperStyle: { ...ownWallpaper(s), ...p } });
 const setWallLyrics = (s: Settings, p: Partial<LyricStyle>) => setWall(s, { lyrics: { ...ownWallpaper(s).lyrics, ...p } });
+
+const resetMain = () => updateSettings({ mainStyle: DEFAULT_MAIN });
+const resetWidget = () => updateSettings({ widgetStyle: DEFAULT_WIDGET, widgetAcrylic: false });
+const resetWall = () => updateSettings({ wallpaperStyle: DEFAULT_WALLPAPER });
+const resetAll = () =>
+  updateSettings({
+    mainStyle: DEFAULT_MAIN,
+    widgetStyle: DEFAULT_WIDGET,
+    wallpaperStyle: DEFAULT_WALLPAPER,
+    widgetAcrylic: false,
+    widgetLinked: false,
+    wallpaperLinked: false,
+  });
+
+const RESETS: Partial<Record<Tab, () => void>> = { main: resetMain, widget: resetWidget, wallpaper: resetWall };
+
+// Presets restyle a surface; a linked one is unlinked first, or the main window would override it.
+const pickMain = (s: Settings, p: Preset) => {
+  const m = ownMain(s);
+  setMain(s, { ...presetScene(p), lyrics: presetLyrics(p, m.lyrics) });
+};
+const pickWidget = (s: Settings, p: Preset) => {
+  const w = ownWidget(s);
+  updateSettings({ widgetLinked: false, widgetStyle: { ...w, lyrics: presetLyrics(p, w.lyrics) } });
+};
+const pickWall = (s: Settings, p: Preset) => {
+  const w = ownWallpaper(s);
+  updateSettings({ wallpaperLinked: false, wallpaperStyle: { ...w, ...presetScene(p), lyrics: presetLyrics(p, w.lyrics) } });
+};
 
 // ---- Tabs ------------------------------------------------------------------
 
@@ -154,7 +191,20 @@ function General({ s }: { s: Settings }) {
         </Row>
       </Section>
       <Section title="Система">
+        <Row label="Кнопка закрытия" hint={s.closeToTray ? "MUSE продолжит работать в трее" : "Приложение полностью закроется"}>
+          <Segmented<boolean>
+            value={s.closeToTray}
+            onChange={(closeToTray) => updateSettings({ closeToTray })}
+            options={[
+              [true, "Свернуть в трей"],
+              [false, "Закрыть приложение"],
+            ]}
+          />
+        </Row>
         <Toggle label="Запускать вместе с Windows" hint="Стартует свёрнутым в трей" value={s.autostart} onChange={(autostart) => updateSettings({ autostart })} />
+        <div className="st-actions">
+          <ResetButton label="Сбросить всё оформление" onReset={resetAll} />
+        </div>
         <div className="keys">
           <div>
             <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>L</kbd> показать или скрыть окно
@@ -176,6 +226,7 @@ function MainTab({ s }: { s: Settings }) {
   return (
     <>
       <Preview variant="main" look={m.lyrics} scene={m} />
+      <PresetPicker current={m.lyrics} onPick={(p) => pickMain(s, p)} />
       <LyricStyleEditor value={m.lyrics} allowAutoSize onChange={(p) => setMainLyrics(s, p)} />
       <SceneEditor value={m} onChange={(p) => setMain(s, p)} />
       <Section title="Интерфейс">
@@ -208,14 +259,6 @@ function MainTab({ s }: { s: Settings }) {
 function WidgetTab({ s }: { s: Settings }) {
   const w = ownWidget(s);
   const shown = resolveWidget(s);
-  const [size, setSize] = useState<[number, number] | null>(null);
-  useEffect(() => {
-    if (s.widgetEnabled) getWidgetSize().then(setSize);
-  }, [s.widgetEnabled]);
-  const resize = (next: [number, number]) => {
-    setSize(next);
-    setWidgetSize(next[0], next[1]);
-  };
   const setBackground = (background: WidgetBackground) => {
     updateSettings({ widgetStyle: { ...w, background }, widgetAcrylic: background === "acrylic" });
   };
@@ -249,15 +292,20 @@ function WidgetTab({ s }: { s: Settings }) {
           disabled={!s.widgetEnabled}
           onChange={(widgetEdit) => updateSettings({ widgetEdit })}
         />
-        {size && (
-          <>
-            <Slider label="Ширина" value={Math.round(size[0])} min={240} max={1600} step={10} format={(v) => `${v} px`} onChange={(v) => resize([v, size[1]])} />
-            <Slider label="Высота" value={Math.round(size[1])} min={110} max={1000} step={10} format={(v) => `${v} px`} onChange={(v) => resize([size[0], v])} />
-          </>
-        )}
       </Section>
 
+      {s.widgetEnabled && (
+        <Section title="Расположение и размер" hint="Перетащите прямоугольник на схеме экрана, нажмите на точку или задайте точные значения">
+          <WidgetPlacement enabled={s.widgetEnabled} />
+        </Section>
+      )}
+
       <Preview variant="widget" look={shown.lyrics} widget={shown} />
+      <PresetPicker
+        current={shown.lyrics}
+        onPick={(p) => pickWidget(s, p)}
+        hint={s.widgetLinked ? "Выбор пресета отвяжет виджет от главного окна" : undefined}
+      />
 
       <Section title="Подложка">
         <Row label="Тип">
@@ -337,13 +385,18 @@ function WallpaperTab({ s }: { s: Settings }) {
         />
       </Section>
 
-      <Preview variant="wallpaper" look={shown.lyrics} scene={shown} />
+      <Preview variant="wallpaper" look={shown.lyrics} scene={shown} column={wallpaperColumn(w)} />
+      <PresetPicker
+        current={shown.lyrics}
+        onPick={(p) => pickWall(s, p)}
+        hint={s.wallpaperLinked ? "Выбор пресета отвяжет обои от главного окна" : undefined}
+      />
 
       <Section title="Расположение">
-        <Row label="Колонка текста">
+        <Row label="Текст на экране" hint="Колонка и выравнивание строк">
           <Segmented
             value={w.position}
-            onChange={(position) => setWall(s, { position })}
+            onChange={(position) => setWall(s, { position, lyrics: { ...w.lyrics, align: position } })}
             options={[
               ["left", "Слева"],
               ["center", "По центру"],
@@ -357,7 +410,7 @@ function WallpaperTab({ s }: { s: Settings }) {
       </Section>
 
       <SceneEditor value={s.wallpaperLinked ? shown : w} linked={s.wallpaperLinked} onChange={(p) => setWall(s, p)} />
-      <LyricStyleEditor value={s.wallpaperLinked ? shown.lyrics : w.lyrics} allowAutoSize linked={s.wallpaperLinked} onChange={(p) => setWallLyrics(s, p)} />
+      <LyricStyleEditor value={s.wallpaperLinked ? shown.lyrics : w.lyrics} allowAutoSize hideAlign linked={s.wallpaperLinked} onChange={(p) => setWallLyrics(s, p)} />
     </>
   );
 }
@@ -401,11 +454,12 @@ function SyncTab({ s }: { s: Settings }) {
         </div>
       </Section>
 
-      <Section title="Сбросить оформление">
+      <Section title="Сбросить оформление" hint="Вернуть стандартный вид">
         <div className="st-actions">
-          <ActionButton onClick={() => updateSettings({ mainStyle: DEFAULT_MAIN })}>Главное окно</ActionButton>
-          <ActionButton onClick={() => updateSettings({ widgetStyle: DEFAULT_WIDGET, widgetAcrylic: false })}>Виджет</ActionButton>
-          <ActionButton onClick={() => updateSettings({ wallpaperStyle: DEFAULT_WALLPAPER })}>Обои</ActionButton>
+          <ResetButton label="Главное окно" onReset={resetMain} />
+          <ResetButton label="Виджет" onReset={resetWidget} />
+          <ResetButton label="Обои" onReset={resetWall} />
+          <ResetButton label="Всё сразу" onReset={resetAll} />
         </div>
       </Section>
     </>
@@ -416,7 +470,7 @@ function About() {
   return (
     <div className="sw-about">
       <Logo size={112} className="sw-about-logo" />
-      <h2>mutxt</h2>
+      <h2>MUSE</h2>
       <p className="sw-about-version">Версия 0.1.0</p>
       <p>Синхронизированный текст песен для Windows: в окне, на рабочем столе и вместо обоев.</p>
       <p className="sw-about-small">

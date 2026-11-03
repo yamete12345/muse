@@ -10,13 +10,14 @@ import type { Settings } from "./types";
 export type FontChoice = "inter" | "segoe" | "serif" | "rounded" | "mono";
 export type FillMode = "smooth" | "word" | "line";
 export type Motion = "soft" | "normal" | "snappy";
+export type Align = "left" | "center" | "right";
 
 export interface LyricStyle {
   font: FontChoice;
   /** px; 0 means "fit to the window" (main window and wallpaper only). */
   fontSize: number;
   fontWeight: number;
-  align: "left" | "center";
+  align: Align;
   lineSpacing: number;
   /** "auto" = text color, "cover" = picked from the artwork, or a #hex. */
   accent: string;
@@ -96,7 +97,7 @@ export const DEFAULT_LYRICS: LyricStyle = {
 
 const SCENE: SceneStyle = {
   background: "animated",
-  bgColor: "#2a2140",
+  bgColor: "#1c252b",
   bgBrightness: 1,
   bgSaturation: 1,
   bgSpeed: 1,
@@ -113,7 +114,7 @@ export const DEFAULT_MAIN: MainStyle = {
 export const DEFAULT_WIDGET: WidgetStyle = {
   lyrics: { ...DEFAULT_LYRICS, fontSize: 26, blur: 0.55, anchor: 0.5, wave: 36 },
   background: "tint",
-  tint: "#0a080e",
+  tint: "#0b0d0f",
   opacity: 0.22,
   coverOpacity: 0.55,
   radius: 24,
@@ -132,6 +133,95 @@ export const DEFAULT_WALLPAPER: WallpaperStyle = {
   dim: 0,
 };
 
+/** Fields every surface keeps for itself: presets and linking never touch them. */
+const LAYOUT_KEYS = ["fontSize", "anchor", "align"] as const;
+
+function keepLayout(next: LyricStyle, own: LyricStyle): LyricStyle {
+  const out = { ...next };
+  for (const k of LAYOUT_KEYS) (out as Record<string, unknown>)[k] = own[k];
+  return out;
+}
+
+export interface Preset {
+  id: string;
+  name: string;
+  hint: string;
+  /** Swatch colors for the preset card. */
+  colors: [string, string];
+  lyrics: Partial<LyricStyle>;
+  scene?: Partial<SceneStyle>;
+}
+
+/** Ready-made looks. They change the style of the text and background, not its size or placement. */
+export const PRESETS: Preset[] = [
+  {
+    id: "classic",
+    name: "Классика",
+    hint: "Как в Apple Music",
+    colors: ["#2a3a42", "#0d0f11"],
+    lyrics: {},
+    scene: {},
+  },
+  {
+    id: "mono",
+    name: "Монохром",
+    hint: "Строго, без цвета",
+    colors: ["#3a3d40", "#0b0c0d"],
+    lyrics: { accent: "auto", unsung: 0.24, glow: 0.55, blur: 0.9 },
+    scene: { background: "animated", bgSaturation: 0.15, bgBrightness: 0.85 },
+  },
+  {
+    id: "neon",
+    name: "Неон",
+    hint: "Цвет обложки и яркое свечение",
+    colors: ["#4fd8ff", "#7d2cff"],
+    lyrics: { accent: "cover", glow: 2.2, blur: 1.3, unsung: 0.3, fontWeight: 800 },
+    scene: { background: "animated", bgSaturation: 1.6, bgBrightness: 1.05, bgSpeed: 1.4 },
+  },
+  {
+    id: "minimal",
+    name: "Минимализм",
+    hint: "Без блюра и свечения",
+    colors: ["#e9ebec", "#8f979c"],
+    lyrics: { fontWeight: 600, blur: 0, glow: 0, scaleInactive: false, emphasis: false, fill: "line", motion: "soft", unsung: 0.4 },
+    scene: { background: "static", bgSaturation: 0.6, bgBrightness: 0.9 },
+  },
+  {
+    id: "karaoke",
+    name: "Караоке",
+    hint: "Слова загораются по одному",
+    colors: ["#ffd65a", "#2b2b2b"],
+    lyrics: { fill: "word", accent: "#ffd65a", fontWeight: 840, glow: 1.4, emphasis: true, motion: "snappy", wave: 30 },
+    scene: { background: "animated", bgSaturation: 0.9, bgBrightness: 0.8 },
+  },
+  {
+    id: "cinema",
+    name: "Кино",
+    hint: "Засечки, мягкая прокрутка",
+    colors: ["#c9d6dc", "#141a1e"],
+    lyrics: { font: "serif", fontWeight: 520, unsung: 0.2, glow: 0.8, blur: 1.6, motion: "soft", wave: 70, lineSpacing: 1.25 },
+    scene: { background: "animated", bgSaturation: 0.5, bgBrightness: 0.7, bgSpeed: 0.6 },
+  },
+];
+
+/** The preset's lyric style on top of the defaults, keeping the surface's own layout. */
+export function presetLyrics(p: Preset, own: LyricStyle): LyricStyle {
+  return keepLayout({ ...DEFAULT_LYRICS, ...p.lyrics }, own);
+}
+
+export function presetScene(p: Preset): SceneStyle {
+  return { ...SCENE, ...p.scene };
+}
+
+/** Which preset the style matches, if any (layout fields ignored). */
+export function matchPreset(l: LyricStyle): string | null {
+  for (const p of PRESETS) {
+    const want = presetLyrics(p, l);
+    if ((Object.keys(want) as (keyof LyricStyle)[]).every((k) => want[k] === l[k])) return p.id;
+  }
+  return null;
+}
+
 /** Shallow merge with defaults, one level deep for the nested lyric style. */
 function merge<T extends { lyrics: LyricStyle }>(defaults: T, stored: unknown): T {
   const s = (stored && typeof stored === "object" ? stored : {}) as Partial<T>;
@@ -140,7 +230,7 @@ function merge<T extends { lyrics: LyricStyle }>(defaults: T, stored: unknown): 
 
 /** Linked surfaces copy the main window's look but keep their own size and position. */
 function linkLyrics(own: LyricStyle, main: LyricStyle): LyricStyle {
-  return { ...main, fontSize: own.fontSize, anchor: own.anchor, align: own.align };
+  return keepLayout(main, own);
 }
 
 /** Each surface's own stored style (before linking), used when editing. */
@@ -170,6 +260,13 @@ export function resolveWallpaper(s: Settings): WallpaperStyle {
     bgSpeed: m.bgSpeed,
     lyrics: linkLyrics(w.lyrics, m.lyrics),
   };
+}
+
+/** The wallpaper's lyrics column as fractions of the screen width. */
+export function wallpaperColumn(w: WallpaperStyle, margin = 0.06): { left: number; width: number } {
+  const width = Math.min(0.9, Math.max(0.3, w.width));
+  const left = w.position === "center" ? (1 - width) / 2 : w.position === "right" ? 1 - width - margin : margin;
+  return { left, width };
 }
 
 const FONTS: Record<FontChoice, string> = {

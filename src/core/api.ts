@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import { clock, patchSettingsLocal } from "./store";
-import type { Settings } from "./types";
+import type { Settings, WidgetGeometry } from "./types";
 
 const quiet = (p: Promise<unknown>) => p.catch((e) => console.warn(e));
 
@@ -44,6 +44,7 @@ export function updateSettings(patch: Partial<Settings>) {
   }
 }
 
-export const setWidgetSize = (width: number, height: number) => quiet(invoke("set_widget_size", { width, height }));
-export const getWidgetSize = () => invoke<[number, number] | null>("get_widget_size").catch(() => null);
+export const setWidgetGeometry = (g: { x: number; y: number; width: number; height: number }) =>
+  quiet(invoke("set_widget_geometry", { x: g.x, y: g.y, width: g.width, height: g.height }));
+export const getWidgetGeometry = () => invoke<WidgetGeometry | null>("get_widget_geometry").catch(() => null);
 export const listMonitors = () => invoke<string[]>("list_monitors").catch(() => [] as string[]);
