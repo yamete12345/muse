@@ -15,7 +15,7 @@
 }
 
 .lx-root.lx-enter {
-  animation: lx-enter 0.9s var(--ease-out) both;
+  animation: lx-enter 0.9s var(--ease-out) backwards;
 }
 
 @keyframes lx-enter {
