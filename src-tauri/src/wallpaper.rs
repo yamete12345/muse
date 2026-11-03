@@ -2,7 +2,7 @@
 //! below the icons (the technique Wallpaper Engine and Lively use). One
 //! window per chosen monitor, labelled `wallpaper-<monitor index>`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -11,8 +11,8 @@ use tauri::{AppHandle, Emitter, Manager, Monitor, WebviewUrl, WebviewWindow, Web
 use windows::core::{w, BOOL};
 use windows::Win32::Foundation::{HWND, LPARAM, RECT, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, FindWindowExW, FindWindowW, GetClassNameW, GetForegroundWindow, GetSystemMetrics, GetWindowLongPtrW,
-    GetWindowRect, IsZoomed, SendMessageTimeoutW, SetParent, SetWindowLongPtrW, SetWindowPos, SystemParametersInfoW,
+    EnumWindows, FindWindowExW, FindWindowW, GetClassNameW, GetForegroundWindow, GetParent, GetSystemMetrics,
+    GetWindowLongPtrW, GetWindowRect, IsZoomed, SendMessageTimeoutW, SetParent, SetWindowLongPtrW, SetWindowPos, SystemParametersInfoW,
     GWL_EXSTYLE, GWL_STYLE, SMTO_NORMAL, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SPI_GETDESKWALLPAPER,
     SPI_SETDESKWALLPAPER, SWP_NOACTIVATE, SWP_NOZORDER, SWP_SHOWWINDOW, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, WS_CAPTION,
     WS_CHILD, WS_EX_APPWINDOW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP,
@@ -25,6 +25,10 @@ pub const PREFIX: &str = "wallpaper-";
 
 /// Screen rect (x, y, w, h) covered by each wallpaper window, by label.
 static TARGETS: Mutex<Vec<(String, [i32; 4])>> = Mutex::new(Vec::new());
+
+/// Windows already shown through Tauri. A window made visible only by Win32
+/// calls leaves its WebView believing it is hidden, and then it draws nothing.
+static SHOWN: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
 fn rect(m: &Monitor) -> [i32; 4] {
     [m.position().x, m.position().y, m.size().width as i32, m.size().height as i32]
@@ -59,6 +63,7 @@ pub fn sync(app: &AppHandle) {
     for (label, w) in app.webview_windows() {
         if label.starts_with(PREFIX) && !targets.iter().any(|(l, _)| *l == label) {
             let _ = w.destroy();
+            forget(&label);
             removed = true;
         }
     }
@@ -66,20 +71,43 @@ pub fn sync(app: &AppHandle) {
         restore_system_wallpaper();
     }
 
-    for (label, r) in &targets {
-        let win = match app.get_webview_window(label) {
-            Some(w) => w,
-            None => match create(app, label) {
-                Ok(w) => w,
-                Err(e) => {
-                    eprintln!("wallpaper: {e}");
-                    continue;
-                }
-            },
-        };
-        attach(&win, *r);
+    for (label, _) in &targets {
+        if app.get_webview_window(label).is_none() {
+            if let Err(e) = create(app, label) {
+                eprintln!("wallpaper: {e}");
+            }
+        }
     }
     *TARGETS.lock().unwrap() = targets;
+    attach_all(app);
+
+    // Explorer may still be rebuilding its desktop layer (and a new WebView
+    // may still be starting): check once more shortly after.
+    let later = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(900));
+        attach_all(&later);
+    });
+}
+
+/// Puts every wanted wallpaper window into the desktop layer. Win32 parenting
+/// runs on the thread that owns the windows, never from a command thread.
+fn attach_all(app: &AppHandle) {
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        let targets = TARGETS.lock().unwrap().clone();
+        for (label, r) in targets {
+            if let Some(win) = handle.get_webview_window(&label) {
+                attach(&win, &label, r);
+            }
+        }
+    });
+}
+
+fn forget(label: &str) {
+    if let Some(set) = SHOWN.lock().unwrap().as_mut() {
+        set.remove(label);
+    }
 }
 
 /// Removes the wallpaper windows; called on exit so the desktop redraws normally.
@@ -88,9 +116,11 @@ pub fn teardown(app: &AppHandle) {
     for (label, w) in app.webview_windows() {
         if label.starts_with(PREFIX) {
             let _ = w.destroy();
+            forget(&label);
             removed = true;
         }
     }
+    TARGETS.lock().unwrap().clear();
     if removed {
         restore_system_wallpaper();
     }
@@ -165,7 +195,7 @@ unsafe extern "system" fn find_worker(hwnd: HWND, lparam: LPARAM) -> BOOL {
     BOOL(1)
 }
 
-fn attach(win: &WebviewWindow, [x, y, w, h]: [i32; 4]) {
+fn attach(win: &WebviewWindow, label: &str, [x, y, w, h]: [i32; 4]) {
     let Ok(raw) = win.hwnd() else { return };
     let hwnd = HWND(raw.0 as _);
     let Some((parent, behind)) = wallpaper_host() else {
@@ -173,19 +203,31 @@ fn attach(win: &WebviewWindow, [x, y, w, h]: [i32; 4]) {
         return;
     };
     unsafe {
-        let frame = (WS_POPUP.0 | WS_CAPTION.0 | WS_THICKFRAME.0 | WS_SYSMENU.0 | WS_MAXIMIZEBOX.0 | WS_MINIMIZEBOX.0) as isize;
-        let style = (GetWindowLongPtrW(hwnd, GWL_STYLE) & !frame) | WS_CHILD.0 as isize;
-        SetWindowLongPtrW(hwnd, GWL_STYLE, style);
-        let ex = (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & !(WS_EX_APPWINDOW.0 as isize))
-            | (WS_EX_NOACTIVATE.0 | WS_EX_TOOLWINDOW.0) as isize;
-        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
-        let _ = SetParent(hwnd, Some(parent));
+        // Already in place: leave it alone, re-parenting makes it flicker.
+        let mut r = RECT::default();
+        let placed = GetParent(hwnd).ok() == Some(parent)
+            && GetWindowRect(hwnd, &mut r).is_ok()
+            && [r.left, r.top, r.right - r.left, r.bottom - r.top] == [x, y, w, h];
+        if !placed {
+            let frame = (WS_POPUP.0 | WS_CAPTION.0 | WS_THICKFRAME.0 | WS_SYSMENU.0 | WS_MAXIMIZEBOX.0 | WS_MINIMIZEBOX.0) as isize;
+            let style = (GetWindowLongPtrW(hwnd, GWL_STYLE) & !frame) | WS_CHILD.0 as isize;
+            SetWindowLongPtrW(hwnd, GWL_STYLE, style);
+            let ex = (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & !(WS_EX_APPWINDOW.0 as isize))
+                | (WS_EX_NOACTIVATE.0 | WS_EX_TOOLWINDOW.0) as isize;
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
+            let _ = SetParent(hwnd, Some(parent));
 
-        // Child coordinates are relative to the parent, which spans the virtual screen.
-        let vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
-        let vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
-        let flags = SWP_NOACTIVATE | SWP_SHOWWINDOW | if behind.is_none() { SWP_NOZORDER } else { Default::default() };
-        let _ = SetWindowPos(hwnd, behind, x - vx, y - vy, w, h, flags);
+            // Child coordinates are relative to the parent, which spans the virtual screen.
+            let vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
+            let vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
+            let flags = SWP_NOACTIVATE | SWP_SHOWWINDOW | if behind.is_none() { SWP_NOZORDER } else { Default::default() };
+            let _ = SetWindowPos(hwnd, behind, x - vx, y - vy, w, h, flags);
+        }
+    }
+
+    let first = SHOWN.lock().unwrap().get_or_insert_with(HashSet::new).insert(label.to_string());
+    if first {
+        let _ = win.show();
     }
 }
 
