@@ -19,7 +19,7 @@ export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked, hi
   const auto = l.fontSize === 0;
   return (
     <>
-      <Section title="Текст" hint={linked ? "Шрифт, цвета и анимация берутся из главного окна" : undefined}>
+      <Section title="Текст" hint={linked ? "Шрифт, цвета, анимация и выравнивание берутся из главного окна" : undefined}>
         <Row label="Шрифт" disabled={linked}>
           <Segmented<FontChoice>
             value={l.font}
@@ -38,9 +38,10 @@ export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked, hi
         {!auto && <Slider label="Размер текста" value={l.fontSize} min={12} max={110} format={(v) => `${v} px`} onChange={(fontSize) => onChange({ fontSize })} />}
         <Slider label="Жирность" value={l.fontWeight} min={350} max={900} step={10} disabled={linked} onChange={(fontWeight) => onChange({ fontWeight })} />
         {!hideAlign && (
-          <Row label="Выравнивание">
+          <Row label="Выравнивание" hint={linked ? "Как в главном окне" : undefined} disabled={linked}>
             <Segmented<Align>
               value={l.align}
+              disabled={linked}
               onChange={(align) => onChange({ align })}
               options={[
                 ["left", "Слева"],

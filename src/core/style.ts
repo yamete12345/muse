@@ -144,9 +144,12 @@ export const DEFAULT_WALLPAPER: WallpaperStyle = {
 /** Fields every surface keeps for itself: presets and linking never touch them. */
 const LAYOUT_KEYS = ["fontSize", "anchor", "align"] as const;
 
-function keepLayout(next: LyricStyle, own: LyricStyle): LyricStyle {
+/** What a linked surface keeps for itself; alignment follows the main window. */
+const OWN_WHEN_LINKED = ["fontSize", "anchor"] as const;
+
+function keepLayout(next: LyricStyle, own: LyricStyle, keys: readonly (keyof LyricStyle)[] = LAYOUT_KEYS): LyricStyle {
   const out = { ...next };
-  for (const k of LAYOUT_KEYS) (out as Record<string, unknown>)[k] = own[k];
+  for (const k of keys) (out as Record<string, unknown>)[k] = own[k];
   return out;
 }
 
@@ -263,7 +266,7 @@ function merge<T extends { lyrics: LyricStyle }>(defaults: T, stored: unknown): 
 
 /** Linked surfaces copy the main window's look but keep their own size and position. */
 function linkLyrics(own: LyricStyle, main: LyricStyle): LyricStyle {
-  return keepLayout(main, own);
+  return keepLayout(main, own, OWN_WHEN_LINKED);
 }
 
 /** Each surface's own stored style (before linking), used when editing. */
@@ -311,6 +314,8 @@ export function resolveWallpaper(s: Settings, monitor?: number): WallpaperStyle 
     bgBrightness: m.bgBrightness,
     bgSaturation: m.bgSaturation,
     bgSpeed: m.bgSpeed,
+    // The column moves with the main window's alignment, like setting it by hand.
+    position: m.lyrics.align,
     lyrics: linkLyrics(w.lyrics, m.lyrics),
   };
 }
