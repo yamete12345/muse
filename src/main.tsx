@@ -14,6 +14,7 @@ import "./styles/app.css";
 import "./styles/widget.css";
 import "./styles/editor.css";
 import "./styles/settings.css";
+import "./styles/cover.css";
 
 const label = getCurrentWindow().label;
 if (label === "widget") document.documentElement.classList.add("is-widget");

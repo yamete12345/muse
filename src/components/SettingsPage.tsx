@@ -182,6 +182,14 @@ function General({ s }: { s: Settings }) {
           />
         </Row>
       </Section>
+      <Section title="Обложка">
+        <Toggle
+          label="Живая обложка"
+          hint="Пока играет музыка, обложка медленно движется, слегка наклоняется и ловит блик. На обоях вокруг неё ещё и мягкое свечение."
+          value={s.liveCover}
+          onChange={(liveCover) => updateSettings({ liveCover })}
+        />
+      </Section>
       <Section title="Производительность">
         <Toggle label="Упрощённое стекло" hint="Без преломления по краям: меньше нагрузка на видеокарту" value={s.simpleGlass} onChange={(simpleGlass) => updateSettings({ simpleGlass })} />
         <Row label="Частота анимации фона">
@@ -465,6 +473,7 @@ function WallpaperTab({ s }: { s: Settings }) {
 
       <Section title="Обложка трека">
         <Toggle label="Карточка с обложкой и названием" value={w.showTrack} onChange={(showTrack) => set({ showTrack })} />
+        <Toggle label="Живая обложка" hint="Общая настройка для окна и обоев" value={s.liveCover} onChange={(liveCover) => updateSettings({ liveCover })} />
         <Row label="Угол экрана" disabled={!w.showTrack}>
           <Segmented<Corner>
             value={w.trackCorner}

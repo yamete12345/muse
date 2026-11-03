@@ -385,11 +385,12 @@
   text-overflow: ellipsis;
 }
 
-.wallpaper-track img {
+.wallpaper-track-cover {
+  flex: none;
   width: 56px;
   height: 56px;
   border-radius: 10px;
-  object-fit: cover;
+  overflow: hidden;
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
 }
 
@@ -466,14 +467,14 @@
   box-shadow:
     0 40px 90px -30px rgba(0, 0, 0, 0.75),
     0 0 0 0.5px rgba(var(--text-rgb), 0.14);
-  animation: art-breathe 9s ease-in-out infinite;
 }
 
-@keyframes art-breathe {
-  50% {
-    transform: scale(1.015);
-  }
+/* The live cover rounds and clips itself; its halo must spill out. */
+.wallpaper-art-cover.has-cover {
+  overflow: visible;
+  background: none;
 }
+
 
 .wallpaper-art-cover img {
   width: 100%;
