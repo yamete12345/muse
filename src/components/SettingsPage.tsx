@@ -8,7 +8,7 @@ import { ActionButton, Row, Section, Segmented, Slider, Toggle, ColorField } fro
 import { LyricStyleEditor, SceneEditor } from "./settings/editors";
 import { Preview } from "./settings/Preview";
 import { PresetPicker, ResetButton, WidgetPlacement } from "./settings/presets";
-import { listMonitors, updateSettings } from "../core/api";
+import { listMonitors, openLog, openLogFolder, updateSettings } from "../core/api";
 import { useStore } from "../core/store";
 import {
   DEFAULT_MAIN,
@@ -210,6 +210,12 @@ function General({ s }: { s: Settings }) {
         <Toggle label="Запускать вместе с Windows" hint="Стартует свёрнутым в трей" value={s.autostart} onChange={(autostart) => updateSettings({ autostart })} />
         <div className="st-actions">
           <ResetButton label="Сбросить всё оформление" onReset={resetAll} />
+        </div>
+      </Section>
+      <Section title="Журнал" hint="Сюда MUSE записывает, что происходит и что пошло не так. Пригодится, если что-то сломалось: приложите файл к сообщению о проблеме.">
+        <div className="st-actions">
+          <ActionButton onClick={openLog}>Открыть журнал</ActionButton>
+          <ActionButton onClick={openLogFolder}>Открыть папку</ActionButton>
         </div>
         <div className="keys">
           <div>

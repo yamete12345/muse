@@ -5,7 +5,8 @@ import { updateSettings } from "../core/api";
 import { useStore } from "../core/store";
 import { openPanel, togglePanel, toggleView, usePanel, useView } from "../core/ui";
 import { Glass } from "./Glass/Glass";
-import { CloseIcon, GearIcon, MaximizeIcon, MinimizeIcon, MoonIcon, PenIcon, SunIcon, WidgetIcon } from "./Icons";
+import { CloseIcon, GearIcon, MaximizeIcon, MinimizeIcon, MoonIcon, PenIcon, SearchIcon, SunIcon, WidgetIcon } from "./Icons";
+import { LyricsSearch } from "./LyricsSearch";
 import { LyricsEditor } from "./LyricsEditor";
 import { Logo } from "./Logo";
 import { useUpdate } from "../core/update";
@@ -52,6 +53,9 @@ export function Sidebar({ light }: { light: boolean }) {
                 <GearIcon size={19} />
                 {updateReady && <span className="rail-badge" aria-label="Есть обновление" />}
               </RailButton>
+              <RailButton label="Найти другой текст" active={panel === "search"} onClick={() => togglePanel("search")}>
+                <SearchIcon size={18} />
+              </RailButton>
               <RailButton label="Свой текст и тайминги" active={panel === "editor"} onClick={() => togglePanel("editor")}>
                 <PenIcon size={18} />
               </RailButton>
@@ -76,6 +80,9 @@ export function Sidebar({ light }: { light: boolean }) {
         </Glass>
       </aside>
 
+      <Pane open={panel === "search"} title="Другой текст" wide>
+        <LyricsSearch />
+      </Pane>
       <Pane open={panel === "editor"} title="Свой текст" wide>
         <LyricsEditor />
       </Pane>

@@ -29,6 +29,9 @@ export function PlainLyrics({ text, source }: { text: string; source: string }) 
         ))}
         <div className="plain-source">
           <span>Текст без синхронизации{SOURCES[source] ?? ""}</span>
+          <button className="link-button" onClick={() => openPanel("search")}>
+            Другой текст
+          </button>
           <button className="link-button" onClick={() => openPanel("editor")}>
             <PenIcon size={14} /> Расставить тайминги
           </button>

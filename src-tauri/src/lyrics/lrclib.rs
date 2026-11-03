@@ -10,6 +10,8 @@ pub struct Record {
     #[serde(default)]
     pub track_name: String,
     #[serde(default)]
+    pub album_name: String,
+    #[serde(default)]
     pub artist_name: String,
     pub duration: Option<f64>,
     #[serde(default)]

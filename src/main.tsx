@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "@fontsource-variable/inter";
 
@@ -24,6 +25,11 @@ const views: Record<string, () => JSX.Element> = {
 const View = label.startsWith("wallpaper-") ? WallpaperWindow : views[label] ?? MainWindow;
 
 installCursorLight();
+
+// Page errors go to the same log file as Rust's (settings → Общие → Журнал).
+const report = (message: string) => invoke("log_frontend", { level: "error", message: `${label}: ${message}` }).catch(() => {});
+window.addEventListener("error", (e) => report(`${e.message} at ${e.filename}:${e.lineno}`));
+window.addEventListener("unhandledrejection", (e) => report(`unhandled: ${e.reason instanceof Error ? e.reason.stack ?? e.reason.message : String(e.reason)}`));
 
 // Keyboard/context-menu defaults of a browser make no sense in a desktop app.
 window.addEventListener("contextmenu", (e) => {

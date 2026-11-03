@@ -30,8 +30,44 @@ pub fn toggle_main(app: &AppHandle) {
     }
 }
 
+/// Shows the main window with the lyrics search open.
+pub fn show_search(app: &AppHandle) {
+    show_main(app);
+    let _ = app.emit_to("main", "ui:search", ());
+}
+
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
-    let s = app.state::<AppState>().settings.lock().unwrap().clone();
+    let state = app.state::<AppState>();
+    let s = state.settings.lock().unwrap().clone();
+    let media = state.media.lock().unwrap().clone().filter(|m| !m.title.is_empty());
+    let offset = media.as_ref().map(|m| state.offset_for(&m.key)).unwrap_or(0);
+    let playing = media.is_some();
+
+    let now = match &media {
+        Some(m) if !m.artist.is_empty() => format!("{} — {}", m.artist, m.title),
+        Some(m) => m.title.clone(),
+        None => "Ничего не играет".to_string(),
+    };
+    // Long names would make the menu very wide.
+    let now: String = if now.chars().count() > 48 { now.chars().take(47).chain(['…']).collect() } else { now };
+    let reset_label = if offset == 0 {
+        "Сдвиг текста: нет".to_string()
+    } else {
+        format!("Сбросить сдвиг ({:+.1} с)", offset as f64 / 1000.0)
+    };
+    let lyrics = Submenu::with_items(
+        app,
+        "Текст песни",
+        playing,
+        &[
+            &MenuItem::with_id(app, "offset:earlier", "Раньше на 0.1 с", playing, None::<&str>)?,
+            &MenuItem::with_id(app, "offset:later", "Позже на 0.1 с", playing, None::<&str>)?,
+            &MenuItem::with_id(app, "offset:reset", reset_label, playing && offset != 0, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "lyrics:wrong", "Текст неправильный…", playing, None::<&str>)?,
+            &MenuItem::with_id(app, "lyrics:retry", "Найти заново", playing, None::<&str>)?,
+        ],
+    )?;
     let theme = Submenu::with_items(
         app,
         "Тема",
@@ -45,6 +81,9 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     Menu::with_items(
         app,
         &[
+            &MenuItem::with_id(app, "now", now, false, None::<&str>)?,
+            &lyrics,
+            &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "show", "Показать окно", true, None::<&str>)?,
             &MenuItem::with_id(app, "settings", "Настройки…", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
@@ -71,6 +110,20 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
                 "show" => return show_main(app),
                 "settings" => return show_settings(app),
                 "quit" => return app.exit(0),
+                "offset:earlier" => {
+                    crate::change_offset(app, |v| v + 100);
+                    return;
+                }
+                "offset:later" => {
+                    crate::change_offset(app, |v| v - 100);
+                    return;
+                }
+                "offset:reset" => {
+                    crate::change_offset(app, |_| 0);
+                    return;
+                }
+                "lyrics:wrong" => return show_search(app),
+                "lyrics:retry" => return crate::retry(app),
                 "wallpaper" => serde_json::json!({ "wallpaperEnabled": !s.wallpaper_enabled }),
                 "widget" => serde_json::json!({ "widgetEnabled": !s.widget_enabled, "widgetEdit": false }),
                 "widget-edit" => serde_json::json!({ "widgetEdit": !s.widget_edit }),

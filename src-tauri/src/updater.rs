@@ -131,6 +131,7 @@ pub async fn check(app: &AppHandle) -> Result<UpdateInfo, String> {
         size: asset.map(|a| a.size).unwrap_or(0),
         download: asset.map(|a| (a.browser_download_url.clone(), a.digest.clone())),
     };
+    crate::log_info!("update", "latest release {} (running {}), available: {}", info.version, info.current, info.available);
     *LATEST.lock().unwrap() = Some(info.clone());
     Ok(info)
 }
@@ -181,6 +182,7 @@ pub async fn install(app: &AppHandle) -> Result<(), String> {
         }
     }
 
+    crate::log_info!("update", "installer {} downloaded and verified, starting it", info.version);
     run_installer(&path)?;
     // Let the installer start, then leave so it can replace the files.
     let app = app.clone();
@@ -209,17 +211,21 @@ fn run_installer(path: &std::path::Path) -> Result<(), String> {
 
 /// Opens one of the app's own links in the default browser.
 pub fn open_link(url: &str) -> Result<(), String> {
-    use windows::core::{w, HSTRING};
-    use windows::Win32::UI::Shell::ShellExecuteW;
-    use windows::Win32::UI::WindowsAndMessaging::SW_SHOW;
-
     const ALLOWED: [&str; 4] = ["https://github.com/yamete12345/muse", "https://lrclib.net", "https://genius.com", "https://tauri.app"];
     if !ALLOWED.iter().any(|a| url == *a || url.starts_with(&format!("{a}/"))) {
         return Err("ссылка не из списка разрешённых".into());
     }
-    let target = HSTRING::from(url);
-    unsafe { ShellExecuteW(None, w!("open"), &target, None, None, SW_SHOW) };
+    shell_open(url);
     Ok(())
+}
+
+/// Opens a file, folder or URL with its default program.
+pub fn shell_open(target: &str) {
+    use windows::core::{w, HSTRING};
+    use windows::Win32::UI::Shell::ShellExecuteW;
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOW;
+    let target = HSTRING::from(target);
+    unsafe { ShellExecuteW(None, w!("open"), &target, None, None, SW_SHOW) };
 }
 
 /// Checks in the background now and then; tells the windows when a newer

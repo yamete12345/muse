@@ -14,7 +14,7 @@ import { useMainStyle } from "../core/appearance";
 import { useStore } from "../core/store";
 import { useResolvedTheme } from "../core/theme";
 import { setPaused } from "../core/ticker";
-import { openView, usePanel, useView } from "../core/ui";
+import { openPanel, openView, usePanel, useView } from "../core/ui";
 import { initUpdates } from "../core/update";
 
 // Update news from Rust is shown in the main window only.
@@ -54,8 +54,11 @@ export function MainWindow() {
   // The tray's "Настройки…" lands on the settings tab.
   useEffect(() => {
     const unlisten = listen("ui:settings", () => openView("settings"));
+    // The tray's "Текст неправильный…" opens the lyrics search.
+    const unlistenSearch = listen("ui:search", () => openPanel("search"));
     return () => {
       unlisten.then((f) => f());
+      unlistenSearch.then((f) => f());
     };
   }, []);
 

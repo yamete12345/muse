@@ -103,7 +103,7 @@ pub fn spawn(app: AppHandle) {
         }
         loop {
             if let Err(e) = run(&app) {
-                eprintln!("gsmtc watcher failed: {e:?}");
+                crate::log_error!("media", "watcher failed: {e:?}");
             }
             std::thread::sleep(Duration::from_secs(3));
         }
@@ -335,6 +335,7 @@ fn publish_media(app: &AppHandle, state: &AppState, ms: Option<MediaState>, key_
             Some(m) if !m.title.is_empty() => {
                 let _ = app.emit("offset:changed", state.offset_for(&m.key));
                 crate::lyrics::request(app.clone(), m);
+                crate::tray::refresh(app);
             }
             _ => {
                 *state.lyrics.lock().unwrap() = None;

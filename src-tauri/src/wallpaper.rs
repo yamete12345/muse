@@ -75,10 +75,16 @@ pub fn sync(app: &AppHandle) {
 
     for (label, _) in &targets {
         if app.get_webview_window(label).is_none() {
+            // A window destroyed along with Explorer must be shown again.
+            forget(label);
             if let Err(e) = create(app, label) {
-                eprintln!("wallpaper: {e}");
+                crate::log_error!("wallpaper", "could not create {label}: {e}");
             }
         }
+    }
+    if !targets.is_empty() {
+        let list: Vec<String> = targets.iter().map(|(l, r)| format!("{l} {r:?}")).collect();
+        crate::log_info!("wallpaper", "showing on {}", list.join(", "));
     }
     *TARGETS.lock().unwrap() = targets;
     attach_all(app);
@@ -98,7 +104,7 @@ fn attach_all(app: &AppHandle) {
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
         let Some(host) = wallpaper_host() else {
-            eprintln!("wallpaper: desktop layer not found");
+            crate::log_warn!("wallpaper", "desktop layer not found");
             return;
         };
         let targets = TARGETS.lock().unwrap().clone();
@@ -146,6 +152,7 @@ fn lift_buried(app: &AppHandle) {
     if hwnds.is_empty() {
         return;
     }
+    crate::log_info!("wallpaper", "Explorer covered {} window(s), lifting them back", hwnds.len());
     let (icons, hwnds) = (icons.0 as isize, hwnds.into_iter().map(|h| h.0 as isize).collect::<Vec<_>>());
     let _ = app.run_on_main_thread(move || unsafe {
         for h in hwnds {
@@ -317,13 +324,60 @@ fn covered([x, y, w, h]: [i32; 4]) -> bool {
     }
 }
 
-/// Tells each wallpaper window to pause while it cannot be seen, and keeps the
-/// windows above Explorer's own wallpaper.
+/// Whether every wallpaper window still sits in the current desktop layer.
+/// After Explorer restarts, the old Progman is gone and our windows with it
+/// (or they are left orphaned).
+fn detached(app: &AppHandle, targets: &[(String, [i32; 4])]) -> bool {
+    let Ok(progman) = (unsafe { FindWindowW(w!("Progman"), None) }) else { return false };
+    targets.iter().any(|(label, _)| match app.get_webview_window(label).and_then(|w| w.hwnd().ok()) {
+        None => true,
+        Some(h) => {
+            // In the 24H2+ layout the parent is Progman, in the older one a
+            // WorkerW. Anything else (no parent, or the plain desktop window
+            // a lost child falls back to) means the window is out of place.
+            let Ok(parent) = (unsafe { GetParent(HWND(h.0 as _)) }) else { return true };
+            if parent == progman {
+                return false;
+            }
+            let mut class = [0u16; 32];
+            let n = unsafe { GetClassNameW(parent, &mut class) }.max(0) as usize;
+            String::from_utf16_lossy(&class[..n]) != "WorkerW"
+        }
+    })
+}
+
+/// Tells each wallpaper window to pause while it cannot be seen, keeps the
+/// windows above Explorer's own wallpaper, and brings them back after
+/// Explorer restarts.
 pub fn spawn_watcher(app: AppHandle) {
     let _ = std::thread::Builder::new().name("wallpaper-watch".into()).spawn(move || {
         let mut last: HashMap<String, bool> = HashMap::new();
+        let mut host = 0isize;
+        let mut broken_ticks = 0u32;
         loop {
             std::thread::sleep(Duration::from_millis(1200));
+            let targets = TARGETS.lock().unwrap().clone();
+            let progman = unsafe { FindWindowW(w!("Progman"), None) }.map(|h| h.0 as isize).unwrap_or(0);
+            if !targets.is_empty() && progman != 0 {
+                let restarted = host != 0 && progman != host;
+                broken_ticks = if detached(&app, &targets) { broken_ticks + 1 } else { 0 };
+                // Two ticks in a row: a window that is only being attached right now is fine.
+                if restarted || broken_ticks >= 2 {
+                    crate::log_warn!(
+                        "wallpaper",
+                        "{}, attaching the windows again",
+                        if restarted { "Explorer restarted" } else { "a window left the desktop layer" }
+                    );
+                    // Give the new desktop a moment to finish building.
+                    std::thread::sleep(Duration::from_millis(1500));
+                    sync(&app);
+                    broken_ticks = 0;
+                    last.clear();
+                }
+            }
+            if progman != 0 {
+                host = progman;
+            }
             let pause_enabled = {
                 let state = app.state::<AppState>();
                 let s = state.settings.lock().unwrap();
