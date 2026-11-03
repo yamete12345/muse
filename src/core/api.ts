@@ -44,7 +44,6 @@ export function updateSettings(patch: Partial<Settings>) {
   }
 }
 
-export const openSettings = () => quiet(invoke("open_settings"));
 export const setWidgetSize = (width: number, height: number) => quiet(invoke("set_widget_size", { width, height }));
 export const getWidgetSize = () => invoke<[number, number] | null>("get_widget_size").catch(() => null);
 export const listMonitors = () => invoke<string[]>("list_monitors").catch(() => [] as string[]);
