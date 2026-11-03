@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { Background } from "../components/Background";
 import { NoteIcon } from "../components/Icons";
@@ -10,14 +11,17 @@ import { wallpaperColumn } from "../core/style";
 import { useResolvedTheme } from "../core/theme";
 import { setPaused } from "../core/ticker";
 
+// Each monitor has its own window, labelled wallpaper-<monitor index>.
+const MONITOR = Number(getCurrentWindow().label.slice("wallpaper-".length)) || 0;
+
 /** Full-screen lyrics living in the desktop's wallpaper layer, behind the icons. */
 export function WallpaperWindow() {
   const theme = useResolvedTheme();
-  const look = useWallpaperStyle();
+  const look = useWallpaperStyle(MONITOR);
   const media = useStore((s) => s.media);
   const cover = useStore((s) => s.cover);
   const lyricsKind = useStore((s) => (s.lyrics && s.lyrics.key === s.media?.key ? s.lyrics.kind : null));
-  // No synced lyrics at all: the artwork takes the middle of the screen instead.
+  // No synced lyrics at all: the artwork takes the screen instead.
   const artOnly = !!media?.title && (lyricsKind === "none" || lyricsKind === "plain" || lyricsKind === "instrumental");
 
   // Rust reports when a maximized or fullscreen window hides the desktop.
@@ -39,14 +43,14 @@ export function WallpaperWindow() {
         <LyricsView mode="wallpaper" look={look.lyrics} />
       </div>
       {artOnly && (
-        <div className="wallpaper-art" key={media!.key}>
+        <div className={`wallpaper-art is-${look.artPosition}`} key={media!.key}>
           <div className="wallpaper-art-cover">{cover ? <img src={cover} alt="" /> : <NoteIcon size={72} />}</div>
           <div className="wallpaper-art-title">{media!.title}</div>
           <div className="wallpaper-art-artist">{media!.artist}</div>
         </div>
       )}
       {look.showTrack && media?.title && !artOnly && (
-        <div className="wallpaper-track" key={media.key} style={{ left: stage.left }}>
+        <div className={`wallpaper-track is-${look.trackCorner}`} key={media.key}>
           {cover && <img src={cover} alt="" />}
           <div>
             <div className="wallpaper-track-title">{media.title}</div>

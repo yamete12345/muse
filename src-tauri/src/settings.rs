@@ -26,8 +26,17 @@ pub struct Settings {
     pub widget_bounds: Option<[i32; 4]>,
     /// Live wallpaper: the lyrics view embedded behind the desktop icons.
     pub wallpaper_enabled: bool,
-    /// Index into the monitor list; -1 is the primary monitor.
+    /// Old single-monitor choice, read once and folded into `wallpaper_monitors`.
+    #[serde(skip_serializing)]
     pub wallpaper_monitor: i32,
+    /// Indexes into the monitor list that get the wallpaper; -1 is the primary monitor.
+    pub wallpaper_monitors: Vec<i32>,
+    /// Each monitor keeps its own wallpaper look instead of sharing one.
+    pub wallpaper_split: bool,
+    /// Per-monitor appearance blobs keyed by monitor index (used when split).
+    pub wallpaper_styles: serde_json::Value,
+    /// The user's saved presets, owned by the frontend.
+    pub user_presets: serde_json::Value,
     /// Pause animation while a maximized/fullscreen window hides the desktop.
     pub wallpaper_pause_covered: bool,
     pub wallpaper_linked: bool,
@@ -55,6 +64,10 @@ impl Default for Settings {
             widget_bounds: None,
             wallpaper_enabled: false,
             wallpaper_monitor: -1,
+            wallpaper_monitors: vec![-1],
+            wallpaper_split: false,
+            wallpaper_styles: serde_json::Value::Null,
+            user_presets: serde_json::Value::Null,
             wallpaper_pause_covered: true,
             wallpaper_linked: false,
             main_style: serde_json::Value::Null,
@@ -78,6 +91,12 @@ pub fn load(dir: &Path) -> Settings {
         .and_then(|t| serde_json::from_str(&t).ok())
         .unwrap_or_default();
     s.widget_edit = false;
+    if s.wallpaper_monitor >= 0 && s.wallpaper_monitors == [-1] {
+        s.wallpaper_monitors = vec![s.wallpaper_monitor];
+    }
+    if s.wallpaper_monitors.is_empty() {
+        s.wallpaper_monitors = vec![-1];
+    }
     s
 }
 
@@ -130,7 +149,7 @@ pub fn update(app: &AppHandle, patch: serde_json::Value) -> Result<Settings, Str
     {
         crate::widget::sync(app);
     }
-    if old.wallpaper_enabled != new.wallpaper_enabled || old.wallpaper_monitor != new.wallpaper_monitor {
+    if old.wallpaper_enabled != new.wallpaper_enabled || old.wallpaper_monitors != new.wallpaper_monitors {
         crate::wallpaper::sync(app);
     }
     crate::tray::refresh(app);

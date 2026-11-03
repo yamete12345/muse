@@ -13,9 +13,9 @@ export const useWidgetStyle = (): WidgetStyle => {
   return useMemo(() => resolveWidget(s), [s]);
 };
 
-export const useWallpaperStyle = (): WallpaperStyle => {
+export const useWallpaperStyle = (monitor?: number): WallpaperStyle => {
   const s = useStore((st) => st.settings);
-  return useMemo(() => resolveWallpaper(s), [s]);
+  return useMemo(() => resolveWallpaper(s, monitor), [s, monitor]);
 };
 
 const cache = new Map<string, string>();
@@ -24,8 +24,29 @@ const cache = new Map<string, string>();
  * A vivid, bright color from the cover ("r, g, b"), for the "from cover" accent.
  * Picks the most saturated pixels and lifts them so they read on dark backgrounds.
  */
-export function useCoverAccent(): string | null {
+const HOLD_MS = 2500;
+
+/**
+ * The current cover, except that the short gap between two tracks keeps the
+ * previous one, so colors go straight from one song to the next instead of
+ * passing through the app's idle look.
+ */
+export function useStickyCover(): string | null {
   const cover = useStore((s) => s.cover);
+  const [held, setHeld] = useState(cover);
+  useEffect(() => {
+    if (cover) {
+      setHeld(cover);
+      return;
+    }
+    const t = setTimeout(() => setHeld(null), HOLD_MS);
+    return () => clearTimeout(t);
+  }, [cover]);
+  return cover ?? held;
+}
+
+export function useCoverAccent(): string | null {
+  const cover = useStickyCover();
   const [accent, setAccent] = useState<string | null>(() => (cover ? cache.get(cover) ?? null : null));
 
   useEffect(() => {

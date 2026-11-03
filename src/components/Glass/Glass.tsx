@@ -23,7 +23,7 @@ interface GlassProps extends HTMLAttributes<HTMLElement> {
 
 /**
  * A liquid-glass surface: refracted + blurred backdrop, specular rim, soft
- * shadow, and a highlight that follows the cursor.
+ * shadow, and a highlight that follows the cursor (see core/light.ts).
  */
 export const Glass = forwardRef<HTMLElement, GlassProps>(function Glass(
   { as = "div", variant = "panel", radius, refraction = 26, blur = 6, large = false, active, className, style, children, ...rest },
@@ -62,14 +62,6 @@ export const Glass = forwardRef<HTMLElement, GlassProps>(function Glass(
     };
   }, [refract, r, blur, refraction]);
 
-  const onPointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    const node = el.current;
-    if (!node) return;
-    const b = node.getBoundingClientRect();
-    node.style.setProperty("--mx", `${(((e.clientX - b.left) / b.width) * 100).toFixed(1)}%`);
-    node.style.setProperty("--my", `${(((e.clientY - b.top) / b.height) * 100).toFixed(1)}%`);
-  };
-
   const Tag = as as "div";
   const classes = ["lg", `lg-${variant}`, refract ? "lg-refract" : "lg-simple", active ? "is-active" : "", className ?? ""]
     .filter(Boolean)
@@ -77,7 +69,7 @@ export const Glass = forwardRef<HTMLElement, GlassProps>(function Glass(
   const css: CSSProperties = { ...style, ["--lg-r" as string]: `${r}px` };
 
   return (
-    <Tag ref={el as React.Ref<HTMLDivElement>} className={classes} style={css} onPointerMove={onPointerMove} {...rest}>
+    <Tag ref={el as React.Ref<HTMLDivElement>} className={classes} style={css} {...rest}>
       {children}
     </Tag>
   );

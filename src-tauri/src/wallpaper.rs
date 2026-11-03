@@ -1,10 +1,13 @@
-//! Live wallpaper: a window re-parented into the desktop's wallpaper layer,
-//! below the icons (the technique Wallpaper Engine and Lively use).
+//! Live wallpaper: windows re-parented into the desktop's wallpaper layer,
+//! below the icons (the technique Wallpaper Engine and Lively use). One
+//! window per chosen monitor, labelled `wallpaper-<monitor index>`.
 
+use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager, Monitor, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use windows::core::{w, BOOL};
 use windows::Win32::Foundation::{HWND, LPARAM, RECT, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -18,51 +21,83 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use crate::state::AppState;
 
-pub const LABEL: &str = "wallpaper";
+pub const PREFIX: &str = "wallpaper-";
 
-/// Screen rect (x, y, w, h) of the monitor the wallpaper covers.
-static TARGET: Mutex<Option<[i32; 4]>> = Mutex::new(None);
+/// Screen rect (x, y, w, h) covered by each wallpaper window, by label.
+static TARGETS: Mutex<Vec<(String, [i32; 4])>> = Mutex::new(Vec::new());
 
-pub fn sync(app: &AppHandle) {
-    let (enabled, monitor) = {
-        let s = app.state::<AppState>().settings.lock().unwrap().clone();
-        (s.wallpaper_enabled, s.wallpaper_monitor)
-    };
-    let existing = app.get_webview_window(LABEL);
-
-    if !enabled {
-        if let Some(w) = existing {
-            let _ = w.destroy();
-            restore_system_wallpaper();
-        }
-        *TARGET.lock().unwrap() = None;
-        return;
-    }
-
-    let Some(rect) = monitor_rect(app, monitor) else { return };
-    let win = match existing {
-        Some(w) => w,
-        None => match create(app) {
-            Ok(w) => w,
-            Err(e) => {
-                eprintln!("wallpaper: {e}");
-                return;
-            }
-        },
-    };
-    attach(&win, rect);
+fn rect(m: &Monitor) -> [i32; 4] {
+    [m.position().x, m.position().y, m.size().width as i32, m.size().height as i32]
 }
 
-/// Removes the wallpaper window; called on exit so the desktop redraws normally.
+/// Monitor indexes and rects the settings ask for; -1 means the primary monitor.
+fn wanted(app: &AppHandle, picks: &[i32]) -> Vec<(usize, [i32; 4])> {
+    let list = app.available_monitors().unwrap_or_default();
+    let primary = app.primary_monitor().ok().flatten().map(|m| rect(&m));
+    let primary_idx = list.iter().position(|m| Some(rect(m)) == primary).unwrap_or(0);
+    let mut out: Vec<(usize, [i32; 4])> = Vec::new();
+    for &p in picks {
+        let i = if p < 0 { primary_idx } else { p as usize };
+        if let Some(m) = list.get(i) {
+            if !out.iter().any(|(j, _)| *j == i) {
+                out.push((i, rect(m)));
+            }
+        }
+    }
+    out
+}
+
+pub fn sync(app: &AppHandle) {
+    let s = app.state::<AppState>().settings.lock().unwrap().clone();
+    let targets: Vec<(String, [i32; 4])> = if s.wallpaper_enabled {
+        wanted(app, &s.wallpaper_monitors).into_iter().map(|(i, r)| (format!("{PREFIX}{i}"), r)).collect()
+    } else {
+        Vec::new()
+    };
+
+    let mut removed = false;
+    for (label, w) in app.webview_windows() {
+        if label.starts_with(PREFIX) && !targets.iter().any(|(l, _)| *l == label) {
+            let _ = w.destroy();
+            removed = true;
+        }
+    }
+    if removed {
+        restore_system_wallpaper();
+    }
+
+    for (label, r) in &targets {
+        let win = match app.get_webview_window(label) {
+            Some(w) => w,
+            None => match create(app, label) {
+                Ok(w) => w,
+                Err(e) => {
+                    eprintln!("wallpaper: {e}");
+                    continue;
+                }
+            },
+        };
+        attach(&win, *r);
+    }
+    *TARGETS.lock().unwrap() = targets;
+}
+
+/// Removes the wallpaper windows; called on exit so the desktop redraws normally.
 pub fn teardown(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window(LABEL) {
-        let _ = w.destroy();
+    let mut removed = false;
+    for (label, w) in app.webview_windows() {
+        if label.starts_with(PREFIX) {
+            let _ = w.destroy();
+            removed = true;
+        }
+    }
+    if removed {
         restore_system_wallpaper();
     }
 }
 
-fn create(app: &AppHandle) -> tauri::Result<WebviewWindow> {
-    WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
+fn create(app: &AppHandle, label: &str) -> tauri::Result<WebviewWindow> {
+    WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
         .title("MUSE wallpaper")
         .decorations(false)
         .shadow(false)
@@ -73,27 +108,24 @@ fn create(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .build()
 }
 
-pub fn monitors(app: &AppHandle) -> Vec<String> {
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorInfo {
+    pub name: String,
+    pub primary: bool,
+}
+
+pub fn monitors(app: &AppHandle) -> Vec<MonitorInfo> {
+    let primary = app.primary_monitor().ok().flatten().map(|m| rect(&m));
     app.available_monitors()
         .unwrap_or_default()
         .iter()
         .enumerate()
-        .map(|(i, m)| {
-            let name = m.name().cloned().unwrap_or_else(|| format!("Монитор {}", i + 1));
-            let name = name.trim_start_matches(r"\\.\").to_string();
-            format!("{} · {}×{}", name, m.size().width, m.size().height)
+        .map(|(i, m)| MonitorInfo {
+            name: format!("Монитор {} · {}×{}", i + 1, m.size().width, m.size().height),
+            primary: Some(rect(m)) == primary,
         })
         .collect()
-}
-
-fn monitor_rect(app: &AppHandle, index: i32) -> Option<[i32; 4]> {
-    let list = app.available_monitors().ok()?;
-    let m = usize::try_from(index)
-        .ok()
-        .and_then(|i| list.get(i).cloned())
-        .or_else(|| app.primary_monitor().ok().flatten())
-        .or_else(|| list.first().cloned())?;
-    Some([m.position().x, m.position().y, m.size().width as i32, m.size().height as i32])
 }
 
 /// Finds the window to parent into and the sibling to sit behind.
@@ -155,7 +187,6 @@ fn attach(win: &WebviewWindow, [x, y, w, h]: [i32; 4]) {
         let flags = SWP_NOACTIVATE | SWP_SHOWWINDOW | if behind.is_none() { SWP_NOZORDER } else { Default::default() };
         let _ = SetWindowPos(hwnd, behind, x - vx, y - vy, w, h, flags);
     }
-    *TARGET.lock().unwrap() = Some([x, y, w, h]);
 }
 
 /// Re-applies the user's wallpaper so the last frame we drew disappears.
@@ -169,9 +200,8 @@ fn restore_system_wallpaper() {
     }
 }
 
-/// Whether a maximized or fullscreen window hides the wallpaper's monitor.
-fn covered() -> bool {
-    let Some([x, y, w, h]) = *TARGET.lock().unwrap() else { return false };
+/// Whether a maximized or fullscreen window hides the given monitor rect.
+fn covered([x, y, w, h]: [i32; 4]) -> bool {
     unsafe {
         let fg = GetForegroundWindow();
         if fg.is_invalid() {
@@ -194,20 +224,25 @@ fn covered() -> bool {
     }
 }
 
-/// Tells the wallpaper window to pause while it cannot be seen.
+/// Tells each wallpaper window to pause while it cannot be seen.
 pub fn spawn_watcher(app: AppHandle) {
     let _ = std::thread::Builder::new().name("wallpaper-watch".into()).spawn(move || {
-        let mut last = false;
+        let mut last: HashMap<String, bool> = HashMap::new();
         loop {
             std::thread::sleep(Duration::from_millis(1200));
             let pause_enabled = {
-                let s = app.state::<AppState>().settings.lock().unwrap().clone();
+                let state = app.state::<AppState>();
+                let s = state.settings.lock().unwrap();
                 s.wallpaper_enabled && s.wallpaper_pause_covered
             };
-            let now = pause_enabled && covered();
-            if now != last {
-                last = now;
-                let _ = app.emit_to(LABEL, "wallpaper:covered", now);
+            let targets = TARGETS.lock().unwrap().clone();
+            last.retain(|label, _| targets.iter().any(|(l, _)| l == label));
+            for (label, r) in targets {
+                let now = pause_enabled && covered(r);
+                if last.get(&label) != Some(&now) {
+                    last.insert(label.clone(), now);
+                    let _ = app.emit_to(label.as_str(), "wallpaper:covered", now);
+                }
             }
         }
     });

@@ -689,7 +689,10 @@
   transition:
     background 0.2s ease,
     box-shadow 0.25s ease,
-    transform 0.45s var(--ease-spring);
+    transform 0.45s var(--ease-spring),
+    --mx 0.22s var(--ease-out),
+    --my 0.22s var(--ease-out),
+    --lit 0.45s ease;
 }
 
 .st-preset:hover {
@@ -829,4 +832,109 @@
   .sw-head .st-reset {
     padding-inline: 10px;
   }
+}
+
+/* ---- Saved presets ---- */
+
+.st-preset-delete {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.2s ease,
+    transform 0.35s var(--ease-spring),
+    background 0.2s ease;
+}
+
+.st-preset:hover .st-preset-delete {
+  opacity: 1;
+  transform: none;
+}
+
+.st-preset-delete:hover {
+  background: rgba(232, 64, 80, 0.9);
+}
+
+.st-preset-new {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-height: 134px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(var(--text-rgb), 0.16);
+  border: 0;
+}
+
+.st-preset-new:hover {
+  box-shadow: inset 0 0 0 1.5px rgba(var(--text-rgb), 0.4);
+}
+
+.st-preset-plus {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: rgba(var(--text-rgb), 0.1);
+  font-size: 22px;
+  font-weight: 500;
+  transition: transform 0.5s var(--ease-spring);
+}
+
+.st-preset-new:hover .st-preset-plus {
+  transform: rotate(90deg);
+}
+
+.st-preset-new.is-naming {
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  cursor: default;
+  animation: item-in 0.35s var(--ease-out) both;
+}
+
+.st-preset-new.is-naming:hover {
+  transform: none;
+}
+
+.st-preset-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(var(--text-rgb), 0.1);
+  color: rgb(var(--text-rgb));
+  font: 600 13px var(--font);
+  outline: none;
+  box-shadow: inset 0 0 0 1.5px transparent;
+  transition: box-shadow 0.2s ease;
+}
+
+.st-preset-input:focus {
+  box-shadow: inset 0 0 0 1.5px rgba(var(--text-rgb), 0.5);
+}
+
+.st-preset-form-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.st-preset-form-buttons .link-button {
+  padding: 6px 10px;
+  font-size: 12px;
 }

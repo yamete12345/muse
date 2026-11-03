@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
+import { useStickyCover } from "../core/appearance";
 import { MeshBackground, noiseDataUrl } from "../core/background";
 import { useStore } from "../core/store";
 import type { SceneStyle } from "../core/style";
@@ -15,7 +16,7 @@ interface Props {
 export function Background({ light, scene, syncWindow = true }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const bg = useRef<MeshBackground | null>(null);
-  const cover = useStore((s) => s.cover);
+  const cover = useStickyCover();
   const playing = useStore((s) => s.media?.playing ?? false);
   const fps = useStore((s) => s.settings.bgFps);
   const noise = useMemo(noiseDataUrl, []);

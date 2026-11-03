@@ -67,10 +67,16 @@ export interface WidgetStyle {
   controls: boolean;
 }
 
+export type Corner = "bottom-left" | "bottom-right" | "top-left" | "top-right";
+
 export interface WallpaperStyle extends SceneStyle {
   lyrics: LyricStyle;
   /** Horizontal placement of the lyrics column. */
   position: "left" | "center" | "right";
+  /** Where the small track card (artwork, title, artist) sits. */
+  trackCorner: Corner;
+  /** Where the large artwork goes when a song has no synced lyrics. */
+  artPosition: "left" | "center" | "right";
   /** Width of the lyrics column, fraction of the screen. */
   width: number;
   showTrack: boolean;
@@ -128,6 +134,8 @@ export const DEFAULT_WALLPAPER: WallpaperStyle = {
   ...SCENE,
   lyrics: { ...DEFAULT_LYRICS, anchor: 0.42 },
   position: "left",
+  trackCorner: "bottom-left",
+  artPosition: "center",
   width: 0.62,
   showTrack: true,
   dim: 0,
@@ -213,9 +221,34 @@ export function presetScene(p: Preset): SceneStyle {
   return { ...SCENE, ...p.scene };
 }
 
+/** Presets the user saved; anything malformed in storage is skipped. */
+export function userPresets(s: Settings): Preset[] {
+  const list = Array.isArray(s.userPresets) ? (s.userPresets as Partial<Preset>[]) : [];
+  return list
+    .filter((p) => p && typeof p.id === "string" && typeof p.name === "string" && p.lyrics && typeof p.lyrics === "object")
+    .map((p) => ({ hint: "Свой пресет", colors: ["#2a3a42", "#0d0f11"], ...p }) as Preset);
+}
+
+/** A preset from the current look: everything except the surface's own layout. */
+export function makePreset(name: string, l: LyricStyle, scene?: SceneStyle): Preset {
+  const lyrics: Partial<LyricStyle> = { ...l };
+  for (const k of LAYOUT_KEYS) delete lyrics[k];
+  const accent = l.accent.startsWith("#") ? l.accent : l.accent === "cover" ? "#8fa6b0" : "#e9ebec";
+  return {
+    id: `user-${Date.now().toString(36)}`,
+    name,
+    hint: "Свой пресет",
+    colors: [accent, scene?.background === "solid" ? scene.bgColor : "#141a1e"],
+    lyrics,
+    scene: scene
+      ? { background: scene.background, bgColor: scene.bgColor, bgBrightness: scene.bgBrightness, bgSaturation: scene.bgSaturation, bgSpeed: scene.bgSpeed }
+      : undefined,
+  };
+}
+
 /** Which preset the style matches, if any (layout fields ignored). */
-export function matchPreset(l: LyricStyle): string | null {
-  for (const p of PRESETS) {
+export function matchPreset(l: LyricStyle, list: Preset[] = PRESETS): string | null {
+  for (const p of list) {
     const want = presetLyrics(p, l);
     if ((Object.keys(want) as (keyof LyricStyle)[]).every((k) => want[k] === l[k])) return p.id;
   }
@@ -236,7 +269,27 @@ function linkLyrics(own: LyricStyle, main: LyricStyle): LyricStyle {
 /** Each surface's own stored style (before linking), used when editing. */
 export const ownMain = (s: Settings): MainStyle => merge(DEFAULT_MAIN, s.mainStyle);
 export const ownWidget = (s: Settings): WidgetStyle => merge(DEFAULT_WIDGET, s.widgetStyle);
-export const ownWallpaper = (s: Settings): WallpaperStyle => merge(DEFAULT_WALLPAPER, s.wallpaperStyle);
+/**
+ * The wallpaper look stored for a monitor: its own when monitors are split,
+ * otherwise the shared one. Monitors without their own look start from the shared.
+ */
+export function ownWallpaper(s: Settings, monitor?: number): WallpaperStyle {
+  if (s.wallpaperSplit && monitor !== undefined) {
+    const map = (s.wallpaperStyles && typeof s.wallpaperStyles === "object" ? s.wallpaperStyles : {}) as Record<string, unknown>;
+    const own = map[String(monitor)];
+    if (own) return merge(DEFAULT_WALLPAPER, own);
+  }
+  return merge(DEFAULT_WALLPAPER, s.wallpaperStyle);
+}
+
+/** The settings patch that stores a wallpaper look for a monitor (or the shared one). */
+export function wallpaperPatch(s: Settings, style: WallpaperStyle, monitor?: number): Partial<Settings> {
+  if (s.wallpaperSplit && monitor !== undefined) {
+    const map = (s.wallpaperStyles && typeof s.wallpaperStyles === "object" ? s.wallpaperStyles : {}) as Record<string, unknown>;
+    return { wallpaperStyles: { ...map, [String(monitor)]: style } };
+  }
+  return { wallpaperStyle: style };
+}
 
 export function resolveMain(s: Settings): MainStyle {
   return ownMain(s);
@@ -247,8 +300,8 @@ export function resolveWidget(s: Settings): WidgetStyle {
   return s.widgetLinked ? { ...w, lyrics: linkLyrics(w.lyrics, resolveMain(s).lyrics) } : w;
 }
 
-export function resolveWallpaper(s: Settings): WallpaperStyle {
-  const w = ownWallpaper(s);
+export function resolveWallpaper(s: Settings, monitor?: number): WallpaperStyle {
+  const w = ownWallpaper(s, monitor);
   if (!s.wallpaperLinked) return w;
   const m = resolveMain(s);
   return {

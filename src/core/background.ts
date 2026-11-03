@@ -53,7 +53,7 @@ void main() {
 
 const TEX = 64;
 const SCALE = 1 / 6;
-const FADE_S = 1.3;
+const FADE_S = 1.8;
 
 export class MeshBackground {
   private gl: WebGLRenderingContext;

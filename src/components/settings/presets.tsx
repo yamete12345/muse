@@ -1,36 +1,110 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 
-import { getWidgetGeometry, setWidgetGeometry } from "../../core/api";
-import { matchPreset, PRESETS, type LyricStyle, type Preset } from "../../core/style";
+import { getWidgetGeometry, setWidgetGeometry, updateSettings } from "../../core/api";
+import { useStore } from "../../core/store";
+import { makePreset, matchPreset, PRESETS, userPresets, type LyricStyle, type Preset, type SceneStyle } from "../../core/style";
 import type { WidgetGeometry } from "../../core/types";
-import { TrashIcon } from "../Icons";
+import { CloseIcon, TrashIcon } from "../Icons";
 import { Section, Slider } from "./controls";
 
-/** Cards with ready-made looks; the one matching the current style is marked. */
-export function PresetPicker({ current, onPick, hint }: { current: LyricStyle; onPick: (p: Preset) => void; hint?: string }) {
-  const active = matchPreset(current);
+/** Cards with ready-made and saved looks; the one matching the current style is marked. */
+export function PresetPicker({
+  current,
+  scene,
+  onPick,
+  hint,
+}: {
+  current: LyricStyle;
+  /** Background of the surface, saved along with the text style. */
+  scene?: SceneStyle;
+  onPick: (p: Preset) => void;
+  hint?: string;
+}) {
+  const settings = useStore((st) => st.settings);
+  const mine = userPresets(settings);
+  const active = matchPreset(current, [...PRESETS, ...mine]);
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState("");
+
+  const save = () => {
+    const p = makePreset(name.trim() || `Мой стиль ${mine.length + 1}`, current, scene);
+    updateSettings({ userPresets: [...mine, p] });
+    setNaming(false);
+    setName("");
+  };
+  const remove = (id: string) => updateSettings({ userPresets: mine.filter((p) => p.id !== id) });
+
+  const card = (p: Preset, own: boolean) => (
+    <div key={p.id} className={`st-preset ${active === p.id ? "is-on" : ""}`} role="button" tabIndex={0} onClick={() => onPick(p)} onKeyDown={(e) => e.key === "Enter" && onPick(p)}>
+      <span className="st-preset-swatch" style={{ background: `linear-gradient(135deg, ${p.colors[0]}, ${p.colors[1]})` }}>
+        <span
+          className="st-preset-sample"
+          style={{
+            fontFamily: p.lyrics.font === "serif" ? "Georgia, serif" : p.lyrics.font === "mono" ? "Consolas, monospace" : undefined,
+            fontWeight: p.lyrics.fontWeight ?? 760,
+            color: p.lyrics.accent?.startsWith("#") ? p.lyrics.accent : undefined,
+          }}
+        >
+          Аа
+        </span>
+      </span>
+      <span className="st-preset-name">{p.name}</span>
+      <span className="st-preset-hint">{p.hint}</span>
+      {own && (
+        <button
+          className="st-preset-delete"
+          aria-label="Удалить пресет"
+          title="Удалить"
+          onClick={(e) => {
+            e.stopPropagation();
+            remove(p.id);
+          }}
+        >
+          <CloseIcon size={11} />
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <Section title="Пресеты" hint={hint ?? "Готовые стили. Размер и расположение текста не меняются."}>
+    <Section title="Пресеты" hint={hint ?? "Готовые стили и ваши сохранённые. Размер и расположение текста не меняются."}>
       <div className="st-presets">
-        {PRESETS.map((p) => (
-          <button key={p.id} className={`st-preset ${active === p.id ? "is-on" : ""}`} onClick={() => onPick(p)}>
-            <span className="st-preset-swatch" style={{ background: `linear-gradient(135deg, ${p.colors[0]}, ${p.colors[1]})` }}>
-              <span
-                className="st-preset-sample"
-                style={{
-                  fontFamily: p.lyrics.font === "serif" ? "Georgia, serif" : undefined,
-                  fontWeight: p.lyrics.fontWeight ?? 760,
-                  color: p.lyrics.accent?.startsWith("#") ? p.lyrics.accent : undefined,
-                }}
-              >
-                Аа
-              </span>
-            </span>
-            <span className="st-preset-name">{p.name}</span>
-            <span className="st-preset-hint">{p.hint}</span>
+        {PRESETS.map((p) => card(p, false))}
+        {mine.map((p) => card(p, true))}
+        {naming ? (
+          <form
+            className="st-preset st-preset-new is-naming"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save();
+            }}
+          >
+            <input
+              autoFocus
+              className="st-preset-input"
+              placeholder="Название"
+              maxLength={28}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), setNaming(false))}
+            />
+            <div className="st-preset-form-buttons">
+              <button type="submit" className="link-button link-button-primary">
+                Сохранить
+              </button>
+              <button type="button" className="link-button" onClick={() => setNaming(false)}>
+                Отмена
+              </button>
+            </div>
+          </form>
+        ) : (
+          <button className="st-preset st-preset-new" onClick={() => setNaming(true)}>
+            <span className="st-preset-plus">+</span>
+            <span className="st-preset-name">Сохранить текущий</span>
+            <span className="st-preset-hint">Как свой пресет</span>
           </button>
-        ))}
+        )}
       </div>
     </Section>
   );

@@ -37,7 +37,14 @@ export interface Settings {
   widgetClickThrough: boolean;
   widgetLinked: boolean;
   wallpaperEnabled: boolean;
-  wallpaperMonitor: number;
+  /** Monitor indexes with a live wallpaper; -1 is the primary monitor. */
+  wallpaperMonitors: number[];
+  /** Each monitor keeps its own look instead of sharing one. */
+  wallpaperSplit: boolean;
+  /** Per-monitor looks keyed by monitor index, used when split. */
+  wallpaperStyles: unknown;
+  /** Presets the user saved, resolved in core/style.ts. */
+  userPresets: unknown;
   wallpaperPauseCovered: boolean;
   wallpaperLinked: boolean;
   /** Opaque appearance objects, resolved against defaults in core/style.ts. */
@@ -49,6 +56,11 @@ export interface Settings {
   autostart: boolean;
   /** The close button hides to the tray instead of quitting. */
   closeToTray: boolean;
+}
+
+export interface MonitorInfo {
+  name: string;
+  primary: boolean;
 }
 
 /** Widget bounds in logical pixels within its monitor's work area. */
