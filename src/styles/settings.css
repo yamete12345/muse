@@ -20,20 +20,23 @@
   pointer-events: none;
 }
 
+/* The page itself only slides; what is inside fades (see .chrome in app.css). */
 @keyframes sw-in {
   from {
-    opacity: 0;
     transform: translateX(30px) scale(0.97);
-    filter: blur(8px);
   }
 }
 
 @keyframes sw-out {
   to {
-    opacity: 0;
     transform: translateX(24px) scale(0.98);
-    filter: blur(6px);
   }
+}
+
+.sw.is-closing .sw-nav,
+.sw.is-closing .sw-head,
+.sw.is-closing .sw-content > * > * {
+  animation: glass-out 0.3s ease forwards;
 }
 
 /* The lyrics tab steps back while settings are open. */
@@ -42,23 +45,37 @@
   inset: 0;
   z-index: 1;
   transition:
-    opacity 0.45s ease,
     transform 0.7s var(--ease-spring),
-    filter 0.45s ease,
     visibility 0s;
 }
 
 .app.in-settings .lyrics-tab {
-  opacity: 0;
   transform: scale(0.96);
-  filter: blur(12px);
   visibility: hidden;
   pointer-events: none;
   transition:
-    opacity 0.35s ease,
     transform 0.5s var(--ease-out),
-    filter 0.35s ease,
     visibility 0s linear 0.35s;
+}
+
+.lyrics-tab > .stage,
+.lyrics-tab > .titlebar {
+  transition:
+    opacity 0.45s ease,
+    filter 0.45s ease;
+}
+
+.app.in-settings .lyrics-tab > .stage,
+.app.in-settings .lyrics-tab > .titlebar {
+  opacity: 0;
+  filter: blur(12px);
+  transition:
+    opacity 0.35s ease,
+    filter 0.35s ease;
+}
+
+.app.in-settings .lyrics-tab .player > .lg {
+  opacity: 0;
 }
 
 .bg::after {
@@ -266,14 +283,26 @@
 
 /* Sections rise in one after another when a tab opens. */
 .sw-content > * {
-  animation: item-in 0.55s var(--ease-out) backwards;
+  animation: rise-in 0.55s var(--ease-out) backwards;
+  animation-delay: var(--d, 0s);
 }
 
-.sw-content > :nth-child(2) { animation-delay: 0.04s; }
-.sw-content > :nth-child(3) { animation-delay: 0.08s; }
-.sw-content > :nth-child(4) { animation-delay: 0.12s; }
-.sw-content > :nth-child(5) { animation-delay: 0.16s; }
-.sw-content > :nth-child(n + 6) { animation-delay: 0.2s; }
+.sw-content > * > * {
+  animation: glass-in 0.5s ease backwards;
+  animation-delay: var(--d, 0s);
+}
+
+.sw-content > :nth-child(2) { --d: 0.04s; }
+.sw-content > :nth-child(3) { --d: 0.08s; }
+.sw-content > :nth-child(4) { --d: 0.12s; }
+.sw-content > :nth-child(5) { --d: 0.16s; }
+.sw-content > :nth-child(n + 6) { --d: 0.2s; }
+
+@keyframes rise-in {
+  from {
+    transform: translateY(12px);
+  }
+}
 
 .st-section-head {
   display: flex;
@@ -1060,7 +1089,9 @@
   right: calc(var(--rail-space) - var(--rail-gap) + 10px);
   z-index: 9;
   width: min(360px, calc(100% - var(--rail-space) - 40px));
-  animation: pane-in 0.6s var(--ease-spring) backwards;
+  animation:
+    pane-in 0.6s var(--ease-spring) backwards,
+    glass-in 0.4s ease backwards;
 }
 
 .update-toast-inner {
