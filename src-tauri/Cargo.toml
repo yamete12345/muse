@@ -1,6 +1,6 @@
 [package]
 name = "muse"
-version = "0.3.0"
+version = "0.3.1"
 description = "Synced lyrics in the style of Apple Music"
 edition = "2021"
 
@@ -24,6 +24,8 @@ scraper = "0.20"
 regex = "1"
 base64 = "0.22"
 sha2 = "0.10"
+# The COM `implement` macro expands to paths in windows-core.
+windows-core = "0.61"
 windows = { version = "0.61", features = [
   "ApplicationModel",
   "Foundation",
@@ -31,6 +33,13 @@ windows = { version = "0.61", features = [
   "Media_Control",
   "Storage_Streams",
   "Win32_Foundation",
+  "Win32_Media_Audio",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Threading",
+  "Win32_System_Variant",
+  "Win32_Storage_EnhancedStorage",
+  "Win32_UI_Shell_PropertiesSystem",
   "Win32_System_SystemInformation",
   "Win32_System_WinRT",
   "Win32_UI_Shell",
