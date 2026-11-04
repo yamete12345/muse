@@ -96,6 +96,56 @@ struct TrackProps {
     album: String,
 }
 
+/// App ids in the media flyout (in Windows' order, one per app) and the one shown.
+static KNOWN: std::sync::Mutex<(Vec<String>, String)> = std::sync::Mutex::new((Vec::new(), String::new()));
+
+fn session_ids(m: &SessionManager) -> Vec<String> {
+    let mut ids: Vec<String> = Vec::new();
+    if let Ok(list) = m.GetSessions() {
+        for s in list {
+            let id = app_id(&s);
+            if !id.is_empty() && !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+    }
+    ids
+}
+
+/// Sources for the tray: (app id, readable name, shown now).
+pub fn known_sources() -> Vec<(String, String, bool)> {
+    let (ids, shown) = KNOWN.lock().unwrap().clone();
+    ids.into_iter()
+        .map(|id| {
+            let name = display_name(&id);
+            let is_shown = id == shown;
+            (id, name, is_shown)
+        })
+        .collect()
+}
+
+/// Shows the next source (Ctrl+Alt+S), keeping it shown.
+pub fn cycle(app: &AppHandle) {
+    let (ids, shown) = KNOWN.lock().unwrap().clone();
+    if ids.len() < 2 {
+        return;
+    }
+    let pinned = app.state::<AppState>().settings.lock().unwrap().media_source.clone();
+    let current = if ids.contains(&pinned) { pinned } else { shown };
+    let next = ids.iter().position(|id| *id == current).map(|i| (i + 1) % ids.len()).unwrap_or(0);
+    let _ = crate::settings::update(app, serde_json::json!({ "mediaSource": ids[next] }));
+}
+
+/// Lets other code nudge the watcher to pick the session again at once.
+static WAKE: std::sync::Mutex<Option<Sender<Sig>>> = std::sync::Mutex::new(None);
+
+/// Re-picks the session now (the chosen source changed).
+pub fn wake() {
+    if let Some(tx) = WAKE.lock().unwrap().as_ref() {
+        let _ = tx.send(Sig::Sessions);
+    }
+}
+
 pub fn spawn(app: AppHandle) {
     let _ = std::thread::Builder::new().name("gsmtc".into()).spawn(move || {
         unsafe {
@@ -121,12 +171,20 @@ fn is_playing(s: &Session) -> bool {
         .unwrap_or(false)
 }
 
-/// Prefers whatever is actually playing, but sticks to the watched session
+/// The source picked in settings while it is open, even paused. Otherwise
+/// prefers whatever is actually playing, but sticks to the watched session
 /// while nothing else plays so pausing does not lose the lyrics.
-fn pick_session(m: &SessionManager, watched: Option<&str>) -> Option<Session> {
+fn pick_session(m: &SessionManager, watched: Option<&str>, pinned: &str) -> Option<Session> {
     let list: Vec<Session> = m.GetSessions().map(|l| l.into_iter().collect()).unwrap_or_default();
     let current = m.GetCurrentSession().ok();
     let by_id = |id: &str| list.iter().find(|s| app_id(s) == id).cloned();
+
+    if !pinned.is_empty() {
+        let mine: Vec<&Session> = list.iter().filter(|s| app_id(s) == pinned).collect();
+        if let Some(p) = mine.iter().find(|s| is_playing(s)).or(mine.first()) {
+            return Some((*p).clone());
+        }
+    }
 
     if let Some(w) = watched.and_then(by_id) {
         if is_playing(&w) {
@@ -204,6 +262,7 @@ fn read_state(s: &Session, id: &str, p: &TrackProps) -> windows::core::Result<Me
         rate: if rate > 0.0 { rate } else { 1.0 },
         can_seek,
         app: id.to_string(),
+        app_name: display_name(id),
     })
 }
 
@@ -211,6 +270,7 @@ fn run(app: &AppHandle) -> windows::core::Result<()> {
     let state = app.state::<AppState>();
     let manager = SessionManager::RequestAsync()?.get()?;
     let (tx, rx) = mpsc::channel::<Sig>();
+    *WAKE.lock().unwrap() = Some(tx.clone());
 
     let t = tx.clone();
     let tok_current = manager.CurrentSessionChanged(
@@ -237,7 +297,8 @@ fn run(app: &AppHandle) -> windows::core::Result<()> {
     let mut last_key = String::new();
 
     let result = loop {
-        let session = pick_session(&manager, watched.as_ref().map(|w| w.id.as_str()));
+        let pinned = state.settings.lock().unwrap().media_source.clone();
+        let session = pick_session(&manager, watched.as_ref().map(|w| w.id.as_str()), &pinned);
         let changed = match (&watched, &session) {
             (Some(w), Some(s)) => w.id != app_id(s),
             (None, None) => false,
@@ -250,6 +311,19 @@ fn run(app: &AppHandle) -> windows::core::Result<()> {
             };
             *state.session.lock().unwrap() = watched.as_ref().map(|w| w.session.clone());
             need_props = true;
+        }
+        // The tray's source list follows the apps in the media flyout.
+        let ids = session_ids(&manager);
+        let shown = watched.as_ref().map(|w| w.id.clone()).unwrap_or_default();
+        let known_changed = {
+            let mut k = KNOWN.lock().unwrap();
+            let fresh = (ids, shown);
+            let differs = *k != fresh;
+            *k = fresh;
+            differs
+        };
+        if known_changed {
+            crate::tray::refresh(app);
         }
 
         match &watched {
@@ -344,5 +418,130 @@ fn publish_media(app: &AppHandle, state: &AppState, ms: Option<MediaState>, key_
                 let _ = app.emit("lyrics:loaded", Option::<crate::state::LyricsPayload>::None);
             }
         }
+    }
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaSource {
+    pub app_id: String,
+    /// "Яндекс Музыка", "Google Chrome"...
+    pub name: String,
+    pub title: String,
+    pub artist: String,
+    pub playing: bool,
+    /// MUSE shows this one right now.
+    pub shown: bool,
+    /// Key for `source_cover`; empty when the player has no picture yet.
+    pub cover: String,
+}
+
+/// Recent source covers as data URLs, by track. Kept small: a cover is
+/// fetched once per track, not on every refresh of the list.
+static COVERS: std::sync::Mutex<Vec<(String, String)>> = std::sync::Mutex::new(Vec::new());
+const COVERS_KEPT: usize = 12;
+
+pub fn source_cover(key: &str) -> Option<String> {
+    COVERS.lock().unwrap().iter().find(|(k, _)| k == key).map(|(_, v)| v.clone())
+}
+
+/// Every app showing in Windows' media flyout right now, for the source picker.
+pub fn sources(app: &AppHandle) -> Vec<MediaSource> {
+    let shown_id = app.state::<AppState>().session.lock().unwrap().as_ref().map(app_id).unwrap_or_default();
+    std::thread::spawn(move || {
+        unsafe {
+            let _ = RoInitialize(RO_INIT_MULTITHREADED);
+        }
+        let Ok(manager) = SessionManager::RequestAsync().and_then(|op| op.get()) else { return Vec::new() };
+        let all: Vec<Session> = manager.GetSessions().map(|l| l.into_iter().collect()).unwrap_or_default();
+        // One entry per app (a browser may have a session per tab): the playing
+        // one, in Windows' order so the covers do not jump around.
+        let mut list: Vec<(String, Session)> = Vec::new();
+        for s in all {
+            let id = app_id(&s);
+            if id.is_empty() {
+                continue;
+            }
+            match list.iter_mut().find(|(i, _)| *i == id) {
+                Some(entry) => {
+                    if !is_playing(&entry.1) && is_playing(&s) {
+                        entry.1 = s;
+                    }
+                }
+                None => list.push((id, s)),
+            }
+        }
+        let mut out: Vec<MediaSource> = Vec::new();
+        for (id, s) in list {
+            let props = read_props(&s).ok();
+            let (artist, title) = props.as_ref().map(|p| normalize::split_video_title(&p.artist, &p.title)).unwrap_or_default();
+            let key = format!("{id}|{artist}|{title}");
+            let mut cover = String::new();
+            if source_cover(&key).is_some() {
+                cover = key;
+            } else if let Some(bytes) = props.as_ref().and_then(|p| read_thumbnail(&p.props)) {
+                let mut covers = COVERS.lock().unwrap();
+                covers.push((key.clone(), data_url(&bytes)));
+                let extra = covers.len().saturating_sub(COVERS_KEPT);
+                covers.drain(..extra);
+                cover = key;
+            }
+            out.push(MediaSource { name: display_name(&id), shown: id == shown_id, playing: is_playing(&s), app_id: id, title, artist, cover });
+        }
+        out
+    })
+    .join()
+    .unwrap_or_default()
+}
+
+/// A readable name for an app id: what Windows calls the app, or a cleaned-up id.
+pub fn display_name(id: &str) -> String {
+    static NAMES: std::sync::Mutex<Vec<(String, String)>> = std::sync::Mutex::new(Vec::new());
+    if let Some((_, n)) = NAMES.lock().unwrap().iter().find(|(k, _)| k == id) {
+        return n.clone();
+    }
+    let name = lookup_name(id);
+    NAMES.lock().unwrap().push((id.to_string(), name.clone()));
+    name
+}
+
+fn lookup_name(id: &str) -> String {
+    let lower = id.to_lowercase();
+    const KNOWN: [(&str, &str); 12] = [
+        ("ru.yandex.desktop.music", "Яндекс Музыка"),
+        ("yandex", "Яндекс"),
+        ("chrome", "Google Chrome"),
+        ("msedge", "Microsoft Edge"),
+        ("firefox", "Firefox"),
+        ("308046b0af4a39cb", "Firefox"),
+        ("opera", "Opera"),
+        ("brave", "Brave"),
+        ("spotify", "Spotify"),
+        ("applemusic", "Apple Music"),
+        ("telegram", "Telegram"),
+        ("vlc", "VLC"),
+    ];
+    if let Some((_, name)) = KNOWN.iter().find(|(k, _)| lower.contains(k)) {
+        return name.to_string();
+    }
+    if let Ok(name) = windows::ApplicationModel::AppInfo::GetFromAppUserModelId(&windows::core::HSTRING::from(id))
+        .and_then(|info| info.DisplayInfo())
+        .and_then(|d| d.DisplayName())
+    {
+        let name = name.to_string();
+        if !name.trim().is_empty() {
+            return name;
+        }
+    }
+    // "SomeVendor.Player_8wekyb3d8bbwe!App" / "C:\Apps\player.exe" -> "Player"
+    let tail = id.rsplit(['\\', '/']).next().unwrap_or(id);
+    let tail = tail.trim_end_matches(".exe").trim_end_matches(".EXE");
+    let base = tail.split('!').next().unwrap_or(tail);
+    let base = base.split('_').next().unwrap_or(base);
+    let word = base.rsplit('.').find(|w| !w.is_empty() && !["desktop", "app", "exe"].contains(&w.to_lowercase().as_str())).unwrap_or(base);
+    let mut c = word.chars();
+    match c.next() {
+        Some(f) => f.to_uppercase().chain(c).collect(),
+        None => id.to_string(),
     }
 }

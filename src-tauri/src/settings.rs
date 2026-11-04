@@ -55,6 +55,12 @@ pub struct Settings {
     pub live_cover: bool,
     /// Label song parts and their singers: off, duets or all.
     pub song_parts: String,
+    /// App id of the media session to show; empty: whatever plays.
+    pub media_source: String,
+    /// Extra lyrics offset per app id (a browser may lag behind a player), ms.
+    pub app_offsets: std::collections::BTreeMap<String, i64>,
+    /// Latin letters for Japanese and Korean lyrics: "under", "instead" or "off".
+    pub romaji: String,
 }
 
 impl Default for Settings {
@@ -86,6 +92,9 @@ impl Default for Settings {
             update_check: true,
             live_cover: true,
             song_parts: "duets".into(),
+            media_source: String::new(),
+            app_offsets: Default::default(),
+            romaji: "under".into(),
         }
     }
 }
@@ -163,6 +172,9 @@ pub fn update(app: &AppHandle, patch: serde_json::Value) -> Result<Settings, Str
     }
     if old.song_parts != new.song_parts {
         crate::lyrics::parts::refresh(app);
+    }
+    if old.media_source != new.media_source {
+        crate::media::gsmtc::wake();
     }
     crate::tray::refresh(app);
     let _ = app.emit("settings:changed", &new);

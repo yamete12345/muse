@@ -21,6 +21,8 @@
   --glass-tint: rgba(255, 255, 255, 0.07);
   --glass-tint-hover: rgba(255, 255, 255, 0.13);
   --glass-tint-active: rgba(255, 255, 255, 0.22);
+  /* Hints inside the rail cannot blur what is behind the rail: nearly solid. */
+  --rail-label-bg: rgba(50, 52, 56, 0.97);
   --glass-shadow: rgba(0, 0, 0, 0.5);
   --glass-shadow-near: rgba(0, 0, 0, 0.22);
   --glass-rim-top: rgba(255, 255, 255, 0.24);
@@ -52,6 +54,7 @@
   --glass-tint: rgba(255, 255, 255, 0.34);
   --glass-tint-hover: rgba(255, 255, 255, 0.5);
   --glass-tint-active: rgba(255, 255, 255, 0.68);
+  --rail-label-bg: rgba(248, 249, 250, 0.98);
   --glass-shadow: rgba(14, 22, 28, 0.22);
   --glass-shadow-near: rgba(14, 22, 28, 0.1);
   --glass-rim-top: rgba(255, 255, 255, 0.95);

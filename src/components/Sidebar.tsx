@@ -9,6 +9,7 @@ import { CloseIcon, GearIcon, MaximizeIcon, MinimizeIcon, MoonIcon, PenIcon, Sea
 import { LyricsSearch } from "./LyricsSearch";
 import { LyricsEditor } from "./LyricsEditor";
 import { Logo } from "./Logo";
+import { SourceRail } from "./SourceRail";
 import { useUpdate } from "../core/update";
 
 const win = getCurrentWindow();
@@ -75,6 +76,7 @@ export function Sidebar({ light }: { light: boolean }) {
             </div>
 
             <div className="rail-fill" />
+            <SourceRail />
             <Logo size={30} className="rail-logo" />
           </div>
         </Glass>

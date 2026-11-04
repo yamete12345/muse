@@ -23,6 +23,8 @@ pub struct MediaState {
     pub rate: f64,
     pub can_seek: bool,
     pub app: String,
+    /// Readable name of `app`: "Яндекс Музыка", "Google Chrome".
+    pub app_name: String,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -34,6 +36,9 @@ pub struct LyricsPayload {
     pub text: String,
     /// "lrclib" | "genius" | "user" | ""
     pub source: String,
+    /// Shown next to the track, e.g. that these are the original's lyrics.
+    #[serde(default)]
+    pub note: String,
 }
 
 #[derive(Clone, Serialize)]

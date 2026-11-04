@@ -68,6 +68,17 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &MenuItem::with_id(app, "lyrics:retry", "Найти заново", playing, None::<&str>)?,
         ],
     )?;
+    // Everything in the media flyout; a pick stays shown until "automatic".
+    let sources = crate::media::gsmtc::known_sources();
+    let source = Submenu::with_id(app, "source", "Источник", sources.len() > 1)?;
+    source.append(&CheckMenuItem::with_id(app, "source:", "Автоматически: что играет", true, s.media_source.is_empty(), None::<&str>)?)?;
+    source.append(&PredefinedMenuItem::separator(app)?)?;
+    for (id, name, shown) in &sources {
+        let label = if *shown && s.media_source.is_empty() { format!("{name} · сейчас") } else { name.clone() };
+        source.append(&CheckMenuItem::with_id(app, format!("source:{id}"), label, true, s.media_source == *id, None::<&str>)?)?;
+    }
+    source.append(&PredefinedMenuItem::separator(app)?)?;
+    source.append(&MenuItem::with_id(app, "source:hint", "Следующий: Ctrl+Alt+S", false, None::<&str>)?)?;
     let theme = Submenu::with_items(
         app,
         "Тема",
@@ -83,6 +94,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         &[
             &MenuItem::with_id(app, "now", now, false, None::<&str>)?,
             &lyrics,
+            &source,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "show", "Показать окно", true, None::<&str>)?,
             &MenuItem::with_id(app, "settings", "Настройки…", true, None::<&str>)?,
@@ -129,6 +141,8 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
                 "widget-edit" => serde_json::json!({ "widgetEdit": !s.widget_edit }),
                 "autostart" => serde_json::json!({ "autostart": !s.autostart }),
                 id if id.starts_with("theme:") => serde_json::json!({ "theme": &id[6..] }),
+                "source:hint" => return,
+                id if id.starts_with("source:") => serde_json::json!({ "mediaSource": &id[7..] }),
                 _ => return,
             };
             let _ = crate::settings::update(app, patch);

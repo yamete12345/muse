@@ -12,6 +12,8 @@ export interface MediaState {
   rate: number;
   canSeek: boolean;
   app: string;
+  /** Readable name of `app`. */
+  appName: string;
 }
 
 export type LyricsKind = "loading" | "synced" | "plain" | "instrumental" | "none";
@@ -21,6 +23,8 @@ export interface LyricsPayload {
   kind: LyricsKind;
   text: string;
   source: "lrclib" | "genius" | "user" | "";
+  /** E.g. that these are the original's lyrics, for a remix. */
+  note?: string;
 }
 
 export interface CoverPayload {
@@ -64,7 +68,15 @@ export interface Settings {
   liveCover: boolean;
   /** Label song parts and their singers. */
   songParts: PartsMode;
+  /** App id of the media session to show; empty: whatever plays. */
+  mediaSource: string;
+  /** Extra lyrics offset per app id, ms. */
+  appOffsets: Record<string, number>;
+  /** Latin letters for Japanese and Korean lyrics. */
+  romaji: RomajiMode;
 }
+
+export type RomajiMode = "under" | "instead" | "off";
 
 export interface MonitorInfo {
   name: string;

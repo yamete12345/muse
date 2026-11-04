@@ -111,6 +111,16 @@ fn reveal_file(app: AppHandle, path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn list_media_sources(app: AppHandle) -> Vec<media::gsmtc::MediaSource> {
+    media::gsmtc::sources(&app)
+}
+
+#[tauri::command]
+fn source_cover(key: String) -> Option<String> {
+    media::gsmtc::source_cover(&key)
+}
+
+#[tauri::command]
 async fn check_update(app: AppHandle) -> Result<updater::UpdateInfo, String> {
     updater::check(&app).await
 }
@@ -138,7 +148,7 @@ async fn save_user_lyrics(app: AppHandle, kind: String, text: String) -> Result<
     }
     let state = app.state::<AppState>();
     let key = state.current_key().ok_or("nothing is playing")?;
-    let payload = LyricsPayload { key, kind, text, source: "user".into() };
+    let payload = LyricsPayload { key, kind, text, source: "user".into(), note: String::new() };
     lyrics::cache::store(&state.data_dir, lyrics::cache::USER, &payload);
     *state.lyrics.lock().unwrap() = Some(payload.clone());
     let synced = payload.kind == "synced";
@@ -183,6 +193,12 @@ fn set_offset(app: AppHandle, ms: i64) -> i64 {
     change_offset(&app, |_| ms).unwrap_or(0)
 }
 
+/// Relative change, so quick repeated clicks all count.
+#[tauri::command]
+fn shift_offset(app: AppHandle, delta: i64) -> i64 {
+    change_offset(&app, |v| v + delta).unwrap_or(0)
+}
+
 /// Forgets the cached lyrics of the playing track and looks them up again.
 pub(crate) fn retry(app: &AppHandle) {
     let state = app.state::<AppState>();
@@ -199,12 +215,13 @@ fn retry_lyrics(app: AppHandle) {
     retry(&app);
 }
 
-fn shortcuts() -> [(Shortcut, &'static str); 3] {
+fn shortcuts() -> [(Shortcut, &'static str); 4] {
     let mods = Some(Modifiers::CONTROL | Modifiers::ALT);
     [
         (Shortcut::new(mods, Code::KeyL), "toggle"),
         (Shortcut::new(mods, Code::BracketLeft), "later"),
         (Shortcut::new(mods, Code::BracketRight), "earlier"),
+        (Shortcut::new(mods, Code::KeyS), "source"),
     ]
 }
 
@@ -232,6 +249,7 @@ pub fn run() {
                     }
                     match shortcuts().iter().find(|(s, _)| s == shortcut).map(|(_, a)| *a) {
                         Some("toggle") => tray::toggle_main(app),
+                        Some("source") => media::gsmtc::cycle(app),
                         Some("later") => {
                             change_offset(app, |v| v - OFFSET_STEP_MS);
                         }
@@ -306,6 +324,7 @@ pub fn run() {
             get_snapshot,
             set_settings,
             set_offset,
+            shift_offset,
             retry_lyrics,
             save_user_lyrics,
             delete_user_lyrics,
@@ -313,6 +332,8 @@ pub fn run() {
             get_widget_geometry,
             list_monitors,
             check_update,
+            list_media_sources,
+            source_cover,
             install_update,
             open_link,
             search_lyrics,

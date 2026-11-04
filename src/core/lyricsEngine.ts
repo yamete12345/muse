@@ -163,6 +163,33 @@ export class LyricsEngine {
     if (changed) requestAnimationFrame(() => this.layout(false));
   }
 
+  /** Puts a smaller second line (e.g. the line in Latin letters) under lines, by item index. */
+  setSubs(subs: Map<number, string>) {
+    let changed = false;
+    this.views.forEach((v, i) => {
+      const want = subs.get(i);
+      let el = v.el.querySelector<HTMLElement>(":scope > .lx-sub");
+      if (!want) {
+        if (el) {
+          el.remove();
+          changed = true;
+        }
+        return;
+      }
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "lx-sub";
+        v.el.appendChild(el);
+        changed = true;
+      }
+      if (el.textContent !== want) {
+        el.textContent = want;
+        changed = true;
+      }
+    });
+    if (changed) requestAnimationFrame(() => this.layout(false));
+  }
+
   setItems(items: Item[]) {
     this.root.replaceChildren();
     this.views = items.map((it) => this.build(it));

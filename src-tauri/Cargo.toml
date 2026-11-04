@@ -1,6 +1,6 @@
 [package]
 name = "muse"
-version = "0.2.7"
+version = "0.3.0"
 description = "Synced lyrics in the style of Apple Music"
 edition = "2021"
 
@@ -25,6 +25,7 @@ regex = "1"
 base64 = "0.22"
 sha2 = "0.10"
 windows = { version = "0.61", features = [
+  "ApplicationModel",
   "Foundation",
   "Foundation_Collections",
   "Media_Control",

@@ -6,6 +6,7 @@ import { Logo } from "./Logo";
 export function TitleBar({ showTrack = true }: { showTrack?: boolean }) {
   const media = useStore((s) => s.media);
   const cover = useStore((s) => s.cover);
+  const note = useStore((s) => (s.lyrics && s.lyrics.key === s.media?.key ? s.lyrics.note : "") || "");
   const hasTrack = !!media?.title;
 
   return (
@@ -16,6 +17,7 @@ export function TitleBar({ showTrack = true }: { showTrack?: boolean }) {
         <div className="now-text">
           <div className="now-title">{media?.title || "MUSE"}</div>
           <div className="now-artist">{media?.artist || "Ожидание музыки"}</div>
+          {note && <div className="now-note">{note}</div>}
         </div>
       </div>
       )}

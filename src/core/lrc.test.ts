@@ -92,6 +92,7 @@ describe("PlaybackClock", () => {
     rate: 1,
     canSeek: true,
     app: "x",
+    appName: "X",
   });
 
   it("extrapolates from the last update while playing", () => {
