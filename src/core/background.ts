@@ -9,6 +9,13 @@ import { onFrame } from "./ticker";
 
 export type BackgroundLook = "cover" | "gradient";
 
+/**
+ * The gradient has crisp edges, so it needs more detail than the blurred
+ * cover: a bigger texture and a third of the window's resolution, not a sixth.
+ */
+const GRADIENT_TEX = 128;
+const GRADIENT_SCALE = 1 / 3;
+
 const VERT = `
 attribute vec2 aPos;
 varying vec2 vUv;
@@ -107,6 +114,12 @@ vec2 fold(vec2 q, vec2 c, float ang, float len, float shift, float bend) {
 }
 
 vec3 cover(vec2 uv) {
+  // Smoothed texel steps: plain linear filtering leaves faint creases at the
+  // texels, and the whirls stretch them into visible blocks.
+  vec2 t = uv * ${GRADIENT_TEX}.0 + 0.5;
+  vec2 i = floor(t);
+  vec2 f = t - i;
+  uv = (i + f * f * (3.0 - 2.0 * f) - 0.5) / ${GRADIENT_TEX}.0;
   return mix(texture2D(uA, uv).rgb, texture2D(uB, uv).rgb, uMix);
 }
 
@@ -332,8 +345,9 @@ export class MeshBackground {
   }
 
   private resize() {
-    const w = Math.max(48, Math.round(this.canvas.clientWidth * SCALE));
-    const h = Math.max(48, Math.round(this.canvas.clientHeight * SCALE));
+    const scale = this.look === "gradient" ? GRADIENT_SCALE : SCALE;
+    const w = Math.max(48, Math.round(this.canvas.clientWidth * scale));
+    const h = Math.max(48, Math.round(this.canvas.clientHeight * scale));
     if (this.canvas.width !== w || this.canvas.height !== h) {
       // Resizing clears the buffer; draw right away so no black frame shows.
       this.canvas.width = w;
@@ -420,13 +434,15 @@ const smoothstep = (x: number) => x * x * (3 - 2 * x);
 
 function downsample(src: CanvasImageSource, look: BackgroundLook = "cover"): HTMLCanvasElement {
   const c = document.createElement("canvas");
-  c.width = c.height = TEX;
+  const size = look === "gradient" ? GRADIENT_TEX : TEX;
+  c.width = c.height = size;
   const ctx = c.getContext("2d")!;
-  // The gradient keeps only the colors: small details melt into their surroundings.
-  ctx.filter = look === "gradient" ? "blur(6px) saturate(1.1)" : "blur(2px) saturate(1.25)";
-  // Overdraw slightly so the blur does not pull in transparent edges.
-  const o = look === "gradient" ? 16 : 4;
-  ctx.drawImage(src, -o, -o, TEX + 2 * o, TEX + 2 * o);
+  // The gradient keeps only the colors: small details melt into their surroundings
+  // (the same blur as 6 px at 64, at twice the texture size).
+  ctx.filter = look === "gradient" ? "blur(12px) saturate(1.1)" : "blur(2px) saturate(1.25)";
+  // Overdraw so the blur does not pull in transparent edges.
+  const o = look === "gradient" ? 32 : 4;
+  ctx.drawImage(src, -o, -o, size + 2 * o, size + 2 * o);
   return c;
 }
 

@@ -85,7 +85,8 @@ export function Background({ light, scene, syncWindow = true }: Props) {
       ) : (
         <canvas ref={canvas} key={look} />
       )}
-      <div className="bg-noise" style={{ backgroundImage: `url(${noise})` }} />
+      {/* One noise dot per screen pixel: it breaks up banding without showing as grain. */}
+      <div className="bg-noise" style={{ backgroundImage: `url(${noise})`, backgroundSize: `${128 / (window.devicePixelRatio || 1)}px` }} />
     </div>
   );
 }
