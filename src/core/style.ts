@@ -35,7 +35,8 @@ export interface LyricStyle {
   anchor: number;
 }
 
-export type BackgroundMode = "animated" | "static" | "solid";
+/** "gradient": the cover's colors flowing; "animated": the blurred cover itself, lighter on the GPU. */
+export type BackgroundMode = "gradient" | "animated" | "static" | "solid";
 
 export interface SceneStyle {
   background: BackgroundMode;
@@ -43,6 +44,8 @@ export interface SceneStyle {
   bgBrightness: number;
   bgSaturation: number;
   bgSpeed: number;
+  /** Gradient: light areas flare with the beat. */
+  bgBeat: boolean;
 }
 
 export interface MainStyle extends SceneStyle {
@@ -102,11 +105,12 @@ export const DEFAULT_LYRICS: LyricStyle = {
 };
 
 const SCENE: SceneStyle = {
-  background: "animated",
+  background: "gradient",
   bgColor: "#1c252b",
   bgBrightness: 1,
   bgSaturation: 1,
   bgSpeed: 1,
+  bgBeat: true,
 };
 
 export const DEFAULT_MAIN: MainStyle = {
@@ -187,7 +191,7 @@ export const PRESETS: Preset[] = [
     hint: "Цвет обложки и яркое свечение",
     colors: ["#4fd8ff", "#7d2cff"],
     lyrics: { accent: "cover", glow: 2.2, blur: 1.3, unsung: 0.3, fontWeight: 800 },
-    scene: { background: "animated", bgSaturation: 1.6, bgBrightness: 1.05, bgSpeed: 1.4 },
+    scene: { background: "gradient", bgSaturation: 1.6, bgBrightness: 1.05, bgSpeed: 1.4 },
   },
   {
     id: "minimal",
@@ -244,7 +248,7 @@ export function makePreset(name: string, l: LyricStyle, scene?: SceneStyle): Pre
     colors: [accent, scene?.background === "solid" ? scene.bgColor : "#141a1e"],
     lyrics,
     scene: scene
-      ? { background: scene.background, bgColor: scene.bgColor, bgBrightness: scene.bgBrightness, bgSaturation: scene.bgSaturation, bgSpeed: scene.bgSpeed }
+      ? { background: scene.background, bgColor: scene.bgColor, bgBrightness: scene.bgBrightness, bgSaturation: scene.bgSaturation, bgSpeed: scene.bgSpeed, bgBeat: scene.bgBeat }
       : undefined,
   };
 }
@@ -314,6 +318,7 @@ export function resolveWallpaper(s: Settings, monitor?: number): WallpaperStyle 
     bgBrightness: m.bgBrightness,
     bgSaturation: m.bgSaturation,
     bgSpeed: m.bgSpeed,
+    bgBeat: m.bgBeat,
     // The column moves with the main window's alignment, like setting it by hand.
     position: m.lyrics.align,
     lyrics: linkLyrics(w.lyrics, m.lyrics),

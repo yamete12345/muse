@@ -107,6 +107,7 @@ export function SceneEditor({ value: s, onChange, linked }: { value: SceneStyle;
           disabled={linked}
           onChange={(background) => onChange({ background })}
           options={[
+            ["gradient", "Цвета обложки"],
             ["animated", "Живая обложка"],
             ["static", "Статичная"],
             ["solid", "Цвет"],
@@ -122,8 +123,17 @@ export function SceneEditor({ value: s, onChange, linked }: { value: SceneStyle;
       {!solid && (
         <>
           <Slider label="Насыщенность" value={s.bgSaturation} min={0} max={2} step={0.02} format={pct} disabled={linked} onChange={(bgSaturation) => onChange({ bgSaturation })} />
-          {s.background === "animated" && (
+          {(s.background === "animated" || s.background === "gradient") && (
             <Slider label="Скорость движения" value={s.bgSpeed} min={0.1} max={3} step={0.05} format={times} disabled={linked} onChange={(bgSpeed) => onChange({ bgSpeed })} />
+          )}
+          {s.background === "gradient" && (
+            <Toggle
+              label="Под бит"
+              hint="Светлые места вспыхивают в такт. MUSE слушает только звук играющего приложения, пока фон виден; ничего не записывается"
+              value={s.bgBeat}
+              disabled={linked}
+              onChange={(bgBeat) => onChange({ bgBeat })}
+            />
           )}
         </>
       )}

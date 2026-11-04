@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { useStickyCover } from "../core/appearance";
@@ -21,12 +23,14 @@ export function Background({ light, scene, syncWindow = true }: Props) {
   const fps = useStore((s) => s.settings.bgFps);
   const noise = useMemo(noiseDataUrl, []);
   const solid = scene.background === "solid";
+  const look = scene.background === "gradient" ? "gradient" : "cover";
+  const beat = look === "gradient" && scene.bgBeat && !solid;
 
   useEffect(() => {
     if (solid) return;
     let b: MeshBackground;
     try {
-      b = new MeshBackground(canvas.current!);
+      b = new MeshBackground(canvas.current!, look);
     } catch (e) {
       console.warn("background disabled:", e);
       return;
@@ -43,16 +47,30 @@ export function Background({ light, scene, syncWindow = true }: Props) {
       b.destroy();
       bg.current = null;
     };
-  }, [solid, syncWindow]);
+  }, [solid, look, syncWindow]);
 
-  useEffect(() => bg.current?.setCover(cover), [cover, solid]);
-  useEffect(() => bg.current?.setPlaying(playing), [playing, solid]);
-  useEffect(() => bg.current?.setFps(fps || 30), [fps, solid]);
-  useEffect(() => bg.current?.setTheme(light), [light, solid]);
+  useEffect(() => bg.current?.setCover(cover), [cover, solid, look]);
+  useEffect(() => bg.current?.setPlaying(playing), [playing, solid, look]);
+  useEffect(() => bg.current?.setFps(fps || 30), [fps, solid, look]);
+  useEffect(() => bg.current?.setTheme(light), [light, solid, look]);
   useEffect(
     () => bg.current?.setScene(scene.bgBrightness, scene.bgSaturation, scene.background === "static" ? 0 : scene.bgSpeed),
-    [scene.bgBrightness, scene.bgSaturation, scene.bgSpeed, scene.background, solid],
+    [scene.bgBrightness, scene.bgSaturation, scene.bgSpeed, scene.background, solid, look],
   );
+
+  // The beat: MUSE hears the playing app only while this window shows the pulse.
+  useEffect(() => {
+    if (!beat) return;
+    const sync = () => invoke("listen_beat", { on: document.visibilityState === "visible" }).catch(() => {});
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    const off = listen<number>("audio:beat", (e) => bg.current?.pulse(e.payload));
+    return () => {
+      document.removeEventListener("visibilitychange", sync);
+      off.then((f) => f());
+      invoke("listen_beat", { on: false }).catch(() => {});
+    };
+  }, [beat]);
 
   useEffect(() => {
     if (!solid) return;
@@ -65,7 +83,7 @@ export function Background({ light, scene, syncWindow = true }: Props) {
       {solid ? (
         <div className="bg-solid" style={{ background: scene.bgColor, filter: `brightness(${scene.bgBrightness})` }} />
       ) : (
-        <canvas ref={canvas} key="mesh" />
+        <canvas ref={canvas} key={look} />
       )}
       <div className="bg-noise" style={{ backgroundImage: `url(${noise})` }} />
     </div>
