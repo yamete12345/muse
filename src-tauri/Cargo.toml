@@ -1,6 +1,6 @@
 [package]
 name = "muse"
-version = "0.2.6"
+version = "0.2.7"
 description = "Synced lyrics in the style of Apple Music"
 edition = "2021"
 
