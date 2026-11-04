@@ -578,12 +578,10 @@
   margin-bottom: 6px;
 }
 
+/* The image's own box must be the picture: then the rounding and shadow sit
+   on it. Wide previews fit the width, tall ones the height. */
 .share-preview img,
 .share-preview i {
-  height: 100%;
-  width: auto;
-  max-width: 100%;
-  object-fit: contain;
   border-radius: 10px;
   box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.6);
 }
@@ -594,8 +592,18 @@
   background: rgba(var(--text-rgb), 0.06);
 }
 
+.share-format.is-horizontal .share-preview img,
+.share-format.is-horizontal .share-preview i {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.share-format.is-vertical .share-preview img,
 .share-format.is-vertical .share-preview i {
-  width: 56%;
+  height: 100%;
+  width: auto;
+  aspect-ratio: 9 / 16;
 }
 
 .share-name {
@@ -641,4 +649,86 @@
   padding-bottom: 18px;
   font-size: 13px;
   color: #ff8a8a;
+}
+
+/* ---- Line context menu ---- */
+
+.line-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 220px;
+  animation:
+    menu-in 0.32s var(--ease-spring) backwards,
+    glass-in 0.18s ease backwards;
+  transform-origin: top left;
+}
+
+@keyframes menu-in {
+  from {
+    transform: scale(0.94);
+  }
+}
+
+.line-menu-items {
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+}
+
+.line-menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 620;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.line-menu-item:hover {
+  background: rgba(var(--text-rgb), 0.12);
+}
+
+.line-menu-item small {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.copied-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 140px;
+  z-index: 60;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(var(--text-rgb), 0.9);
+  color: var(--app-bg);
+  font-size: 13px;
+  font-weight: 700;
+  transform: translateX(-50%);
+  animation: toast-in 1.6s ease both;
+  pointer-events: none;
+}
+
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  12%,
+  80% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 0);
+  }
 }

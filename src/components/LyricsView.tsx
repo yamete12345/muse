@@ -11,6 +11,7 @@ import { openPanel } from "../core/ui";
 import { NoteIcon, PenIcon, SearchIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { PlainLyrics } from "./PlainLyrics";
+import { LineMenu } from "./LineMenu";
 import { ShareDialog } from "./ShareDialog";
 
 export type LyricsMode = "main" | "widget" | "wallpaper";
@@ -27,7 +28,7 @@ interface CanvasProps {
   suspended?: boolean;
   /** Part captions by item index. */
   labels?: Map<number, PartLabel>;
-  onLineMenu?: (item: Item) => void;
+  onLineMenu?: (item: Item, x: number, y: number) => void;
 }
 
 /** Hosts a LyricsEngine and keeps it in sync with the appearance settings. */
@@ -44,7 +45,7 @@ export function LyricsCanvas({ items, time, look, className, center, interactive
       center,
       interactive: !!interactive,
       onSeek: seekLyrics,
-      onLineMenu: (item) => menuRef.current?.(item),
+      onLineMenu: (item, x, y) => menuRef.current?.(item, x, y),
     });
     engine.current = e;
     return () => e.destroy();
@@ -81,13 +82,21 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
   const parts = useStore((s) => (s.parts && s.parts.key === key ? s.parts : null));
   const partsMode = useStore((s) => s.settings.songParts);
   const labels = useMemo(() => (mode === "widget" ? undefined : partLabels(items, parts, partsMode)), [items, parts, partsMode, mode]);
-  // Right click on a line in the main window: up to four lines from it, as a picture.
+  // Right click on a line in the main window: copy it, or make a picture of
+  // up to four lines from it.
   const [share, setShare] = useState<string[] | null>(null);
-  const openShare = (item: Item) => {
-    const from = items.indexOf(item);
-    const lines = items.slice(from).flatMap((it) => (it.kind === "line" && it.line.text.trim() ? [it.line.text] : [])).slice(0, 4);
-    if (lines.length) setShare(lines);
+  const [menu, setMenu] = useState<{ x: number; y: number; item: Item } | null>(null);
+  const [copied, setCopied] = useState(0);
+  const linesFrom = (item: Item) =>
+    items.slice(items.indexOf(item)).flatMap((it) => (it.kind === "line" && it.line.text.trim() ? [it.line.text] : [])).slice(0, 4);
+  const openMenu = (item: Item, x: number, y: number) => {
+    if (item.kind === "line" && item.line.text.trim()) setMenu({ x, y, item });
   };
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(0), 1600);
+    return () => clearTimeout(t);
+  }, [copied]);
   const vars = useMemo(() => ({ ...lyricVars(look, accent), ...style }), [look, accent, style]);
 
   let status: React.ReactNode = null;
@@ -137,8 +146,26 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
         hidden={!synced}
         suspended={suspended}
         labels={labels}
-        onLineMenu={isMain ? openShare : undefined}
+        onLineMenu={isMain ? openMenu : undefined}
       />
+      {menu && (
+        <LineMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              label: "Скопировать строку",
+              onSelect: () => {
+                const text = menu.item.kind === "line" ? menu.item.line.text : "";
+                navigator.clipboard.writeText(text).then(() => setCopied(Date.now()), () => {});
+              },
+            },
+            { label: "Картинка с текстом…", hint: "Для чатов и историй", onSelect: () => setShare(linesFrom(menu.item)) },
+          ]}
+        />
+      )}
+      {copied > 0 && <div className="copied-toast" key={copied}>Строка скопирована</div>}
       {share && <ShareDialog lines={share} onClose={() => setShare(null)} />}
       {!synced && status}
     </div>

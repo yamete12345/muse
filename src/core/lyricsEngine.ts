@@ -40,8 +40,8 @@ export interface EngineOptions {
   center?: boolean;
   interactive: boolean;
   onSeek?: (ms: number) => void;
-  /** Right click on a line (main window: share the line as a picture). */
-  onLineMenu?: (item: Item) => void;
+  /** Right click on a line, with the cursor position (main window: line menu). */
+  onLineMenu?: (item: Item, x: number, y: number) => void;
 }
 
 const DEFAULT_TUNING: EngineTuning = {
@@ -241,7 +241,7 @@ export class LyricsEngine {
       if (this.opts.interactive && this.opts.onLineMenu) {
         el.addEventListener("contextmenu", (e) => {
           e.preventDefault();
-          this.opts.onLineMenu!(item);
+          this.opts.onLineMenu!(item, e.clientX, e.clientY);
         });
       }
       if (this.opts.interactive && this.opts.onSeek) {
