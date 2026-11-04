@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import { retryLyrics, seekLyrics } from "../core/api";
 import { useCoverAccent } from "../core/appearance";
@@ -11,6 +11,7 @@ import { openPanel } from "../core/ui";
 import { NoteIcon, PenIcon, SearchIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { PlainLyrics } from "./PlainLyrics";
+import { ShareDialog } from "./ShareDialog";
 
 export type LyricsMode = "main" | "widget" | "wallpaper";
 
@@ -26,20 +27,24 @@ interface CanvasProps {
   suspended?: boolean;
   /** Part captions by item index. */
   labels?: Map<number, PartLabel>;
+  onLineMenu?: (item: Item) => void;
 }
 
 /** Hosts a LyricsEngine and keeps it in sync with the appearance settings. */
-export function LyricsCanvas({ items, time, look, className, center, interactive, hidden, suspended, labels }: CanvasProps) {
+export function LyricsCanvas({ items, time, look, className, center, interactive, hidden, suspended, labels, onLineMenu }: CanvasProps) {
   const root = useRef<HTMLDivElement>(null);
   const engine = useRef<LyricsEngine | null>(null);
   const timeRef = useRef(time);
   timeRef.current = time;
+  const menuRef = useRef(onLineMenu);
+  menuRef.current = onLineMenu;
 
   useEffect(() => {
     const e = new LyricsEngine(root.current!, () => timeRef.current(), {
       center,
       interactive: !!interactive,
       onSeek: seekLyrics,
+      onLineMenu: (item) => menuRef.current?.(item),
     });
     engine.current = e;
     return () => e.destroy();
@@ -76,6 +81,13 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
   const parts = useStore((s) => (s.parts && s.parts.key === key ? s.parts : null));
   const partsMode = useStore((s) => s.settings.songParts);
   const labels = useMemo(() => (mode === "widget" ? undefined : partLabels(items, parts, partsMode)), [items, parts, partsMode, mode]);
+  // Right click on a line in the main window: up to four lines from it, as a picture.
+  const [share, setShare] = useState<string[] | null>(null);
+  const openShare = (item: Item) => {
+    const from = items.indexOf(item);
+    const lines = items.slice(from).flatMap((it) => (it.kind === "line" && it.line.text.trim() ? [it.line.text] : [])).slice(0, 4);
+    if (lines.length) setShare(lines);
+  };
   const vars = useMemo(() => ({ ...lyricVars(look, accent), ...style }), [look, accent, style]);
 
   let status: React.ReactNode = null;
@@ -125,7 +137,9 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
         hidden={!synced}
         suspended={suspended}
         labels={labels}
+        onLineMenu={isMain ? openShare : undefined}
       />
+      {share && <ShareDialog lines={share} onClose={() => setShare(null)} />}
       {!synced && status}
     </div>
   );

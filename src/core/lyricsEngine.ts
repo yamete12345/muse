@@ -40,6 +40,8 @@ export interface EngineOptions {
   center?: boolean;
   interactive: boolean;
   onSeek?: (ms: number) => void;
+  /** Right click on a line (main window: share the line as a picture). */
+  onLineMenu?: (item: Item) => void;
 }
 
 const DEFAULT_TUNING: EngineTuning = {
@@ -236,6 +238,12 @@ export class LyricsEngine {
         view.words.push({ el: span, start: w.start, end: w.end, letters, q: 1, e: 0 });
       });
       el.appendChild(text);
+      if (this.opts.interactive && this.opts.onLineMenu) {
+        el.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          this.opts.onLineMenu!(item);
+        });
+      }
       if (this.opts.interactive && this.opts.onSeek) {
         el.addEventListener("click", () => {
           this.exitFree(true);
@@ -434,7 +442,7 @@ export class LyricsEngine {
       const glow = lift * this.tune.glow;
       l.style.transform = `translateY(${(-lift * 0.055).toFixed(4)}em)`;
       l.style.textShadow =
-        glow > 0.005 ? `0 0 ${(glow * 0.42).toFixed(3)}em rgba(var(--glow-rgb),${Math.min(1, glow * 0.8).toFixed(3)})` : "";
+        glow > 0.005 ? `0 0 ${Math.min(glow * 0.42, 0.9).toFixed(3)}em rgba(var(--glow-rgb),${Math.min(1, glow * 0.8).toFixed(3)})` : "";
     }
   }
 

@@ -75,6 +75,41 @@ fn open_log_folder(app: AppHandle) {
     updater::shell_open(&logger::dir(&dir).to_string_lossy());
 }
 
+/// Saves a share picture (PNG, base64) to Pictures\MUSE and returns its path.
+#[tauri::command]
+async fn save_share_image(app: AppHandle, png_base64: String, name: String) -> Result<String, String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(png_base64).map_err(|e| e.to_string())?;
+    let dir = app.path().picture_dir().map_err(|e| e.to_string())?.join("MUSE");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    // Keep the name to safe characters; the page builds it from the track title.
+    let safe: String = name
+        .chars()
+        .map(|c| if c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.') { c } else { '_' })
+        .collect::<String>()
+        .trim()
+        .chars()
+        .take(90)
+        .collect();
+    let path = dir.join(format!("{}.png", if safe.is_empty() { "MUSE" } else { &safe }));
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    log_info!("share", "saved {}", path.display());
+    Ok(path.to_string_lossy().to_string())
+}
+
+/// Opens Explorer with a saved share picture selected.
+#[tauri::command]
+fn reveal_file(app: AppHandle, path: String) -> Result<(), String> {
+    // Only files MUSE itself wrote to Pictures\MUSE.
+    let dir = app.path().picture_dir().map_err(|e| e.to_string())?.join("MUSE");
+    let p = std::path::PathBuf::from(&path);
+    if !p.starts_with(&dir) {
+        return Err("not a MUSE picture".into());
+    }
+    let _ = std::process::Command::new("explorer").arg("/select,").arg(&p).spawn();
+    Ok(())
+}
+
 #[tauri::command]
 async fn check_update(app: AppHandle) -> Result<updater::UpdateInfo, String> {
     updater::check(&app).await
@@ -285,6 +320,8 @@ pub fn run() {
             log_frontend,
             open_log,
             open_log_folder,
+            save_share_image,
+            reveal_file,
             media::commands::media_toggle,
             media::commands::media_next,
             media::commands::media_prev,
