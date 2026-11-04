@@ -23,6 +23,13 @@ static ARTIST_SPLIT: LazyLock<Regex> = LazyLock::new(|| {
 });
 static CHANNEL_SUFFIX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)(\s*-\s*topic|vevo|\s*official)$").unwrap());
+/// Versions of a song with the same words: remixes, sped up, slowed...
+static VARIANT: LazyLock<Regex> = LazyLock::new(|| {
+    let words = r"remix|rmx|flip|bootleg|sped\s*up|speed\s*up|slowed|reverb|nightcore|daycore|bass\s*boost(ed)?|8d";
+    Regex::new(&format!(r"(?i)\s*[\(\[][^\)\]]*\b({words})\b[^\)\]]*[\)\]]|\s+-\s+[^-]*\b({words})\b.*$")).unwrap()
+});
+static TEMPO: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\b(sped\s*up|speed\s*up|slowed|nightcore|daycore)\b").unwrap());
 static SPACES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+").unwrap());
 
 pub fn clean_title(title: &str) -> String {
@@ -30,6 +37,23 @@ pub fn clean_title(title: &str) -> String {
     let t = DASH_JUNK.replace(&t, "");
     let t = FEAT.replace(&t, "");
     SPACES.replace_all(t.trim(), " ").into_owned()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Variant {
+    /// Same recording, faster or slower: timings scale with the duration.
+    Tempo,
+    /// Reworked: same words, different timing.
+    Remix,
+}
+
+/// "Холод (flaksboi remix)" -> ("Холод", Remix); "Song (sped up)" -> ("Song", Tempo).
+pub fn original_title(title: &str) -> Option<(String, Variant)> {
+    let found = VARIANT.find(title)?;
+    let variant = if TEMPO.is_match(found.as_str()) { Variant::Tempo } else { Variant::Remix };
+    let rest = VARIANT.replace_all(title, "");
+    let rest = clean_title(&rest);
+    (!rest.is_empty()).then_some((rest, variant))
 }
 
 pub fn clean_artist(artist: &str) -> String {
@@ -46,10 +70,11 @@ pub fn primary_artist(artist: &str) -> String {
 pub fn split_video_title(artist: &str, title: &str) -> (String, String) {
     let channelish = artist.trim().is_empty() || CHANNEL_SUFFIX.is_match(artist.trim());
     if let Some((left, right)) = title.split_once(" - ") {
-        let left_matches = !artist.is_empty()
-            && fold(left).contains(&fold(&clean_artist(artist)))
-            && !fold(&clean_artist(artist)).is_empty();
-        if channelish || left_matches {
+        let a = fold(&clean_artist(artist));
+        let left_matches = !a.is_empty() && fold(left).contains(&a);
+        // A remixer's channel: "Artist - Song (Channel Remix)".
+        let remixer = !a.is_empty() && VARIANT.find(right).is_some_and(|m| fold(m.as_str()).contains(&a));
+        if channelish || left_matches || remixer {
             return (left.trim().to_string(), clean_title(right));
         }
     }
@@ -103,6 +128,21 @@ mod tests {
         assert_eq!(
             split_video_title("Deftones", "My Own Summer (Shove It)"),
             ("Deftones".to_string(), "My Own Summer (Shove It)".to_string())
+        );
+    }
+
+    #[test]
+    fn finds_the_original_of_versions() {
+        assert_eq!(original_title("Холод / Diamond (flaksboi remix)"), Some(("Холод / Diamond".to_string(), Variant::Remix)));
+        assert_eq!(original_title("Song (Sped Up)"), Some(("Song".to_string(), Variant::Tempo)));
+        assert_eq!(original_title("Song - slowed + reverb"), Some(("Song".to_string(), Variant::Tempo)));
+        assert_eq!(original_title("Song [Nightcore]"), Some(("Song".to_string(), Variant::Tempo)));
+        assert_eq!(original_title("My Own Summer (Shove It)"), None);
+        assert_eq!(original_title("Remix"), None);
+        // The uploader is the remixer, not the artist.
+        assert_eq!(
+            split_video_title("flaksboi", "KAI ANGEL feat. КОРЕШ - Холод / Diamond (flaksboi remix)"),
+            ("KAI ANGEL feat. КОРЕШ".to_string(), "Холод / Diamond (flaksboi remix)".to_string())
         );
     }
 

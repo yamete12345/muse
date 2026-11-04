@@ -287,3 +287,34 @@
 .lx-root.is-free .lx-label {
   filter: none;
 }
+
+/* The line again in Latin letters, under the line (Japanese, Korean). */
+.lx-sub {
+  margin-top: calc(var(--lx-size) * 0.12);
+  font-family: var(--font);
+  font-size: max(12px, calc(var(--lx-size) * 0.46));
+  font-weight: 600;
+  line-height: 1.25;
+  color: rgb(var(--text-rgb));
+  opacity: calc(var(--unsung) * 0.9);
+  filter: blur(calc(var(--b, 0px) * var(--blur-k, 1)));
+  transition:
+    opacity 0.6s ease,
+    filter 0.45s ease;
+}
+
+.lx-line[data-d="0"] .lx-sub {
+  opacity: 0.72;
+}
+
+.lx-root[data-align="center"] .lx-sub {
+  text-align: center;
+}
+
+.lx-root[data-align="right"] .lx-sub {
+  text-align: right;
+}
+
+.lx-root.is-free .lx-sub {
+  filter: none;
+}

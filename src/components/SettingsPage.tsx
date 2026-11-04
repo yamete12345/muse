@@ -32,7 +32,7 @@ import {
   type WidgetStyle,
 } from "../core/style";
 import type { PartsMode } from "../core/parts";
-import type { MonitorInfo, Settings, ThemeSetting } from "../core/types";
+import type { MonitorInfo, RomajiMode, Settings, ThemeSetting } from "../core/types";
 import { openView, useView } from "../core/ui";
 import { checkForUpdate, installUpdate, openLink, REPO_URL, useUpdate } from "../core/update";
 
@@ -196,6 +196,22 @@ function General({ s }: { s: Settings }) {
           />
         </Row>
       </Section>
+      <Section
+        title="Латиница"
+        hint="Для японских и корейских песен: как читается строка. Для японского словарь чтений (около 12 МБ) скачается один раз, при первой такой песне."
+      >
+        <Row label="Показывать">
+          <Segmented<RomajiMode>
+            value={s.romaji}
+            onChange={(romaji) => updateSettings({ romaji })}
+            options={[
+              ["under", "Под строкой"],
+              ["instead", "Вместо текста"],
+              ["off", "Нет"],
+            ]}
+          />
+        </Row>
+      </Section>
       <Section title="Обложка">
         <Toggle
           label="Живая обложка"
@@ -245,6 +261,9 @@ function General({ s }: { s: Settings }) {
           </div>
           <div>
             <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>]</kbd> / <kbd>[</kbd> текст раньше или позже на 0.1 с
+          </div>
+          <div>
+            <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd> следующий источник музыки
           </div>
           <div>
             <kbd>Пробел</kbd> пауза · <kbd>F11</kbd> полный экран · <kbd>Esc</kbd> вернуться к тексту

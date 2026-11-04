@@ -17,15 +17,24 @@ export function syllables(word: string): number {
   return digits > 0 ? Math.min(digits, 3) : 1;
 }
 
-/** Splits a line into words; CJK text without spaces is split per character. */
-export function tokenize(text: string): string[] {
-  const out: string[] = [];
+/**
+ * Splits a line into words; CJK text without spaces is split per character,
+ * those characters glued together (no space between them on screen).
+ */
+function pieces(text: string): { text: string; glue: boolean }[] {
+  const out: { text: string; glue: boolean }[] = [];
   for (const w of text.trim().split(/\s+/)) {
     if (!w) continue;
-    if (CJK.test(w) && w.length > 1) out.push(...Array.from(w));
-    else out.push(w);
+    if (CJK.test(w) && w.length > 1) {
+      const chars = Array.from(w);
+      chars.forEach((c, i) => out.push({ text: c, glue: i < chars.length - 1 }));
+    } else out.push({ text: w, glue: false });
   }
   return out;
+}
+
+export function tokenize(text: string): string[] {
+  return pieces(text).map((p) => p.text);
 }
 
 /**
@@ -33,7 +42,8 @@ export function tokenize(text: string): string[] {
  * syllables. The last word gets extra weight because singers tend to hold it.
  */
 export function estimateWords(text: string, start: number, end: number): Word[] {
-  const tokens = tokenize(text);
+  const parts = pieces(text);
+  const tokens = parts.map((p) => p.text);
   if (tokens.length === 0) return [];
   const weights = tokens.map((t, i) => (syllables(t) + 0.35) * (i === tokens.length - 1 ? 1.4 : 1));
   const total = weights.reduce((a, b) => a + b, 0);
@@ -41,7 +51,7 @@ export function estimateWords(text: string, start: number, end: number): Word[] 
   let t = start;
   return tokens.map((text, i) => {
     const d = (weights[i] / total) * span;
-    const w = { text, start: t, end: t + d };
+    const w: Word = parts[i].glue ? { text, start: t, end: t + d, glue: true } : { text, start: t, end: t + d };
     t += d;
     return w;
   });

@@ -41,6 +41,9 @@ const defaultSettings: Settings = {
   updateCheck: true,
   liveCover: true,
   songParts: "duets",
+  mediaSource: "",
+  appOffsets: {},
+  romaji: "under",
 };
 
 /** Applies a settings change locally right away; Rust confirms via `settings:changed`. */
@@ -60,8 +63,14 @@ export function getState(): AppStore {
   return state;
 }
 
+/** The app's own offset, on top of the track's (a browser may lag behind a player). */
+export function appOffsetOf(s: AppStore): number {
+  return (s.media && s.settings.appOffsets?.[s.media.app]) || 0;
+}
+
 function set(patch: Partial<AppStore>) {
   state = { ...state, ...patch };
+  clock.offsetMs = state.offsetMs + appOffsetOf(state);
   for (const l of listeners) l();
 }
 
@@ -96,15 +105,11 @@ export async function initStore() {
       if (performance.now() < localUntil) return;
       set({ settings: e.payload });
     }),
-    listen<number>("offset:changed", (e) => {
-      clock.offsetMs = e.payload;
-      set({ offsetMs: e.payload });
-    }),
+    listen<number>("offset:changed", (e) => set({ offsetMs: e.payload })),
   ]);
 
   const snap = await invoke<Snapshot>("get_snapshot");
   clock.sync(snap.media);
-  clock.offsetMs = snap.offsetMs;
   set({
     ready: true,
     media: snap.media,

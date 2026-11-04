@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { retryLyrics, seekLyrics } from "../core/api";
 import { useCoverAccent } from "../core/appearance";
 import { buildItems, parseLrc, type Item } from "../core/lrc";
+import { romanize, wantsRomaji } from "../core/romaji";
+import { estimateWords } from "../core/timing";
 import { LyricsEngine } from "../core/lyricsEngine";
 import { clock, useStore } from "../core/store";
 import { partLabels, type PartLabel } from "../core/parts";
@@ -28,11 +30,13 @@ interface CanvasProps {
   suspended?: boolean;
   /** Part captions by item index. */
   labels?: Map<number, PartLabel>;
+  /** Second lines (Latin letters) by item index. */
+  subs?: Map<number, string>;
   onLineMenu?: (item: Item, x: number, y: number) => void;
 }
 
 /** Hosts a LyricsEngine and keeps it in sync with the appearance settings. */
-export function LyricsCanvas({ items, time, look, className, center, interactive, hidden, suspended, labels, onLineMenu }: CanvasProps) {
+export function LyricsCanvas({ items, time, look, className, center, interactive, hidden, suspended, labels, subs, onLineMenu }: CanvasProps) {
   const root = useRef<HTMLDivElement>(null);
   const engine = useRef<LyricsEngine | null>(null);
   const timeRef = useRef(time);
@@ -56,6 +60,7 @@ export function LyricsCanvas({ items, time, look, className, center, interactive
   useEffect(() => engine.current?.setItems(items), [items, center, interactive]);
   useEffect(() => engine.current?.setSuspended(!!suspended), [suspended, center, interactive]);
   useEffect(() => engine.current?.setLabels(labels ?? new Map()), [labels, items, center, interactive]);
+  useEffect(() => engine.current?.setSubs(subs ?? new Map()), [subs, items, center, interactive]);
 
   return <div ref={root} className={className} data-align={look.align} style={{ visibility: hidden ? "hidden" : "visible" }} />;
 }
@@ -82,6 +87,20 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
   const parts = useStore((s) => (s.parts && s.parts.key === key ? s.parts : null));
   const partsMode = useStore((s) => s.settings.songParts);
   const labels = useMemo(() => (mode === "widget" ? undefined : partLabels(items, parts, partsMode)), [items, parts, partsMode, mode]);
+  // Japanese and Korean lines in Latin letters: under each line, or instead of it.
+  const romajiMode = useStore((s) => s.settings.romaji);
+  const roman = useRomaji(current ? current.key : "", items);
+  const shownItems = useMemo(
+    () =>
+      romajiMode === "instead" && roman
+        ? items.map((it, i) => {
+            const r = roman.get(i);
+            return it.kind === "line" && r ? { ...it, line: { ...it.line, text: r, words: estimateWords(r, it.line.start, it.line.end), exact: false } } : it;
+          })
+        : items,
+    [items, roman, romajiMode],
+  );
+  const subs = romajiMode === "under" ? roman ?? undefined : undefined;
   // Right click on a line in the main window: copy it, or make a picture of
   // up to four lines from it.
   const [share, setShare] = useState<string[] | null>(null);
@@ -137,7 +156,7 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
   return (
     <div className={`lx-host lx-host-${mode}`} style={vars}>
       <LyricsCanvas
-        items={items}
+        items={shownItems}
         time={() => clock.now()}
         look={look}
         className={`lx-root lx-${mode}`}
@@ -146,6 +165,7 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
         hidden={!synced}
         suspended={suspended}
         labels={labels}
+        subs={subs}
         onLineMenu={isMain ? openMenu : undefined}
       />
       {menu && (
@@ -202,4 +222,38 @@ function Status({
       {children}
     </div>
   );
+}
+
+/**
+ * Latin versions of the lines that differ from the original (Japanese,
+ * Korean), by item index; null while there are none or the setting is off.
+ */
+function useRomaji(key: string, items: Item[]): Map<number, string> | null {
+  const mode = useStore((s) => s.settings.romaji);
+  const [result, setResult] = useState<{ items: Item[]; map: Map<number, string> } | null>(null);
+  useEffect(() => {
+    const idx: number[] = [];
+    const texts: string[] = [];
+    items.forEach((it, i) => {
+      if (it.kind === "line") {
+        idx.push(i);
+        texts.push(it.line.text);
+      }
+    });
+    if (mode === "off" || !wantsRomaji(texts)) {
+      setResult(null);
+      return;
+    }
+    let alive = true;
+    romanize(key, texts).then((lines) => {
+      if (!alive) return;
+      const map = new Map<number, string>();
+      lines.forEach((r, k) => r && r !== texts[k] && map.set(idx[k], r));
+      setResult({ items, map });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [key, items, mode]);
+  return result && result.items === items && mode !== "off" ? result.map : null;
 }

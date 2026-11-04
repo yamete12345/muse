@@ -25,7 +25,8 @@ export function seekLyrics(ms: number) {
 export const saveUserLyrics = (kind: "synced" | "plain", text: string) => quiet(invoke("save_user_lyrics", { kind, text }));
 export const deleteUserLyrics = () => quiet(invoke("delete_user_lyrics"));
 
-export const setOffset =(ms: number) => quiet(invoke("set_offset", { ms: Math.round(ms) }));
+export const setOffset = (ms: number) => quiet(invoke("set_offset", { ms: Math.round(ms) }));
+export const shiftOffset = (delta: number) => quiet(invoke("shift_offset", { delta: Math.round(delta) }));
 
 // Sliders fire on every step: apply locally at once, send to Rust at most every 60 ms.
 let pending: Partial<Settings> | null = null;
