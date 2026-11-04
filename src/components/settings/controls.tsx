@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, type ReactNode } from "react";
 
 export function Section({ title, hint, children, aside }: { title: string; hint?: string; children: ReactNode; aside?: ReactNode }) {
   return (
@@ -67,9 +67,27 @@ export function Segmented<T extends string | number | boolean>({
   disabled?: boolean;
 }) {
   const idx = Math.max(0, options.findIndex(([v]) => v === value));
+  const box = useRef<HTMLDivElement>(null);
+  const thumb = useRef<HTMLSpanElement>(null);
+  // Labels differ in length, so the thumb takes the chosen button's own place
+  // and width instead of an equal share.
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const place = () => {
+      const b = el.querySelectorAll("button")[idx] as HTMLElement | undefined;
+      if (!b || !thumb.current) return;
+      thumb.current.style.setProperty("--tx", `${b.offsetLeft}px`);
+      thumb.current.style.setProperty("--tw", `${b.offsetWidth}px`);
+    };
+    place();
+    const ro = new ResizeObserver(place);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [idx, options.length]);
   return (
-    <div className={`segmented ${disabled ? "is-disabled" : ""}`} style={{ ["--n" as string]: options.length, ["--i" as string]: idx }}>
-      <span className="segmented-thumb" />
+    <div ref={box} className={`segmented ${disabled ? "is-disabled" : ""}`} style={{ ["--n" as string]: options.length, ["--i" as string]: idx }}>
+      <span ref={thumb} className="segmented-thumb" />
       {options.map(([v, label]) => (
         <button key={String(v)} className={v === value ? "is-on" : ""} disabled={disabled} onClick={() => onChange(v)}>
           {label}
