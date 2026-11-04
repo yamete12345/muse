@@ -150,20 +150,29 @@ export async function renderShare(card: ShareCard, format: ShareFormat): Promise
   const textW = vertical ? W - 180 : W - textX - 150;
   // Largest size that fits the space; a single short line gets big type.
   const room = vertical ? H - (metaY + 120) - 230 : 800;
+  // Rows of one lyric line sit tight; separate lines get a clear gap, so a
+  // wrapped line never reads as two.
+  const layout = (s: number) => {
+    ctx.font = `820 ${s}px ${FONT}`;
+    const rows: { text: string; y: number }[] = [];
+    let y = 0;
+    card.lines.forEach((l, i) => {
+      if (i > 0) y += s * 0.42;
+      for (const text of wrap(ctx, l, textW)) {
+        rows.push({ text, y });
+        y += s * 1.16;
+      }
+    });
+    return { rows, height: y };
+  };
   let size = vertical ? 112 : 104;
-  let rows: string[] = [];
-  for (; size >= 44; size -= 4) {
-    ctx.font = `820 ${size}px ${FONT}`;
-    rows = card.lines.flatMap((l) => wrap(ctx, l, textW));
-    if (rows.length * size * 1.18 <= room) break;
-  }
-  const lineH = size * 1.18;
-  const blockH = rows.length * lineH;
+  let block = layout(size);
+  for (; size > 44 && block.height > room; size -= 4) block = layout(size - 4);
   // Vertical: centred in the space between the title and the mark.
-  const top = vertical ? metaY + 120 + (room - blockH) / 2 + size * 0.85 : (H - blockH) / 2 + size * 0.85;
+  const top = vertical ? metaY + 120 + (room - block.height) / 2 + size * 0.85 : (H - block.height) / 2 + size * 0.85;
   ctx.textAlign = vertical ? "center" : "left";
-  rows.forEach((row, i) => {
-    const y = top + i * lineH;
+  block.rows.forEach(({ text: row, y: dy }) => {
+    const y = top + dy;
     ctx.save();
     ctx.shadowColor = `rgba(${accent}, 0.55)`;
     ctx.shadowBlur = size * 0.55;
