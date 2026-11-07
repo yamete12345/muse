@@ -1222,3 +1222,9 @@
   font-size: 13px;
   color: var(--muted);
 }
+
+/* Главное окно | Виджет | Живые обои, at the top of the Appearance tab. */
+.st-surfaces > .segmented {
+  width: 100%;
+  box-sizing: border-box;
+}
