@@ -216,10 +216,12 @@ fn retry_lyrics(app: AppHandle) {
     retry(&app);
 }
 
-fn shortcuts() -> [(Shortcut, &'static str); 4] {
+fn shortcuts() -> [(Shortcut, &'static str); 6] {
     let mods = Some(Modifiers::CONTROL | Modifiers::ALT);
     [
         (Shortcut::new(mods, Code::KeyL), "toggle"),
+        (Shortcut::new(mods, Code::ArrowRight), "next"),
+        (Shortcut::new(mods, Code::ArrowLeft), "prev"),
         (Shortcut::new(mods, Code::BracketLeft), "later"),
         (Shortcut::new(mods, Code::BracketRight), "earlier"),
         (Shortcut::new(mods, Code::KeyS), "source"),
@@ -257,6 +259,8 @@ pub fn run() {
                     match shortcuts().iter().find(|(s, _)| s == shortcut).map(|(_, a)| *a) {
                         Some("toggle") => tray::toggle_main(app),
                         Some("source") => media::gsmtc::cycle(app),
+                        Some("next") => media::commands::skip(app, true),
+                        Some("prev") => media::commands::skip(app, false),
                         Some("later") => {
                             change_offset(app, |v| v - OFFSET_STEP_MS);
                         }

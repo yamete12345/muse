@@ -353,10 +353,13 @@ fn run(app: &AppHandle) -> windows::core::Result<()> {
                                     let payload = CoverPayload { key: ms.key.clone(), data_url: data_url(&bytes) };
                                     *state.cover.lock().unwrap() = Some(payload.clone());
                                     let _ = app.emit("media:cover", payload);
+                                    // Small thumbnails get swapped for large artwork when a catalogue has it.
+                                    super::artwork::upgrade(app, &ms, Some(&bytes));
                                 }
                             } else if key_changed {
                                 *state.cover.lock().unwrap() = None;
                                 let _ = app.emit("media:cover", CoverPayload { key: ms.key.clone(), data_url: String::new() });
+                                super::artwork::upgrade(app, &ms, None);
                             }
                         }
                     }

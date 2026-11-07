@@ -13,13 +13,40 @@ interface LyricEditorProps {
   linked?: boolean;
   /** The wallpaper sets alignment together with the column position. */
   hideAlign?: boolean;
+  /**
+   * "look": font, colours, effects and motion (shared when surfaces are
+   * linked); "size": text size and where the active line sits (each surface
+   * keeps its own). Both when omitted.
+   */
+  part?: "look" | "size";
+  /** Note under the section title. */
+  hint?: string;
 }
 
-export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked, hideAlign }: LyricEditorProps) {
+export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked, hideAlign, part, hint }: LyricEditorProps) {
   const auto = l.fontSize === 0;
+  const look = part !== "size";
+  const size = part !== "look";
+  const sizeRows = (
+    <>
+      {allowAutoSize && <Toggle label="Размер по окну" hint="Текст подстраивается под размер окна" value={auto} onChange={(v) => onChange({ fontSize: v ? 0 : 48 })} />}
+      {!auto && <Slider label="Размер текста" value={l.fontSize} min={12} max={110} format={(v) => `${v} px`} onChange={(fontSize) => onChange({ fontSize })} />}
+    </>
+  );
+  const anchorRow = (
+    <Slider label="Положение активной строки" hint="Сверху вниз" value={l.anchor} min={0.12} max={0.7} step={0.01} format={pct} onChange={(anchor) => onChange({ anchor })} />
+  );
+  if (!look) {
+    return (
+      <Section title="Размер текста" hint={hint}>
+        {sizeRows}
+        {anchorRow}
+      </Section>
+    );
+  }
   return (
     <>
-      <Section title="Текст" hint={linked ? "Шрифт, цвета, анимация и выравнивание берутся из главного окна" : undefined}>
+      <Section title="Текст" hint={hint ?? (linked ? "Шрифт, цвета, анимация и выравнивание берутся из главного окна" : undefined)}>
         <Row label="Шрифт" disabled={linked}>
           <Segmented<FontChoice>
             value={l.font}
@@ -34,8 +61,7 @@ export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked, hi
             ]}
           />
         </Row>
-        {allowAutoSize && <Toggle label="Размер по окну" hint="Текст подстраивается под размер окна" value={auto} onChange={(v) => onChange({ fontSize: v ? 0 : 48 })} />}
-        {!auto && <Slider label="Размер текста" value={l.fontSize} min={12} max={110} format={(v) => `${v} px`} onChange={(fontSize) => onChange({ fontSize })} />}
+        {size && sizeRows}
         <Slider label="Жирность" value={l.fontWeight} min={350} max={900} step={10} disabled={linked} onChange={(fontWeight) => onChange({ fontWeight })} />
         {!hideAlign && (
           <Row label="Выравнивание" hint={linked ? "Как в главном окне" : undefined} disabled={linked}>
@@ -52,7 +78,7 @@ export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked, hi
           </Row>
         )}
         <Slider label="Межстрочный интервал" value={l.lineSpacing} min={0.3} max={2.4} step={0.05} format={times} disabled={linked} onChange={(lineSpacing) => onChange({ lineSpacing })} />
-        <Slider label="Положение активной строки" hint="Сверху вниз" value={l.anchor} min={0.12} max={0.7} step={0.01} format={pct} onChange={(anchor) => onChange({ anchor })} />
+        {size && anchorRow}
       </Section>
 
       <Section title="Цвет и эффекты">
@@ -97,10 +123,20 @@ export function LyricStyleEditor({ value: l, onChange, allowAutoSize, linked, hi
   );
 }
 
-export function SceneEditor({ value: s, onChange, linked }: { value: SceneStyle; onChange: (p: Partial<SceneStyle>) => void; linked?: boolean }) {
+export function SceneEditor({
+  value: s,
+  onChange,
+  linked,
+  hint,
+}: {
+  value: SceneStyle;
+  onChange: (p: Partial<SceneStyle>) => void;
+  linked?: boolean;
+  hint?: string;
+}) {
   const solid = s.background === "solid";
   return (
-    <Section title="Фон" hint={linked ? "Фон берётся из главного окна" : undefined}>
+    <Section title="Фон" hint={hint ?? (linked ? "Фон берётся из главного окна" : undefined)}>
       <Row label="Тип фона" disabled={linked}>
         <Segmented
           value={s.background}

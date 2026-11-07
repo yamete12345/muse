@@ -110,7 +110,7 @@ vec2 fold(vec2 q, vec2 c, float ang, float len, float shift, float bend) {
   float along = dot(d, vec2(-dir.y, dir.x));
   float across = dot(d, dir) + 0.16 * sin(along * 2.6 + bend);
   float reach = exp(-along * along / (len * len)) * exp(-across * across / 0.12);
-  return q + dir * shift * reach * smoothstep(-0.009, 0.009, across);
+  return q + dir * shift * reach * smoothstep(-0.03, 0.03, across);
 }
 
 vec3 cover(vec2 uv) {
@@ -131,18 +131,18 @@ void main() {
   // so the same moves never come back in the same order.
   vec4 a = uPhA, b = uPhB, c = uPhC;
   vec2 q = rot(T * 0.013 + c.w) * p;
-  q = whirl(q, vec2(0.38 * sin(T * 0.041 + a.x), 0.3 * cos(T * 0.033 + a.y)), 0.5, 2.0 * uAmpW.x * sin(T * 0.052 + a.z));
-  q = whirl(q, vec2(-0.42 * cos(T * 0.029 + a.w), 0.3 * sin(T * 0.047 + b.x)), 0.42, -2.2 * uAmpW.y * sin(T * 0.038 + b.y));
-  q = whirl(q, vec2(0.46 * sin(T * 0.023 + b.z), -0.34 * cos(T * 0.031 + b.w)), 0.58, 1.8 * uAmpW.z * cos(T * 0.044 + c.x));
-  q = whirl(q, vec2(-0.2 * sin(T * 0.036 + c.y), -0.25 * cos(T * 0.027 + c.z)), 0.38, 1.7 * uAmpW.w * sin(T * 0.061 + a.x + b.y));
+  q = whirl(q, vec2(0.38 * sin(T * 0.041 + a.x), 0.3 * cos(T * 0.033 + a.y)), 0.72, 1.15 * uAmpW.x * sin(T * 0.052 + a.z));
+  q = whirl(q, vec2(-0.42 * cos(T * 0.029 + a.w), 0.3 * sin(T * 0.047 + b.x)), 0.66, -1.2 * uAmpW.y * sin(T * 0.038 + b.y));
+  q = whirl(q, vec2(0.46 * sin(T * 0.023 + b.z), -0.34 * cos(T * 0.031 + b.w)), 0.8, 1.0 * uAmpW.z * cos(T * 0.044 + c.x));
+  q = whirl(q, vec2(-0.2 * sin(T * 0.036 + c.y), -0.25 * cos(T * 0.027 + c.z)), 0.6, 0.9 * uAmpW.w * sin(T * 0.061 + a.x + b.y));
   q += 0.05 * vec2(sin(q.y * 3.1 + T * 0.1 + b.z), cos(q.x * 2.7 - T * 0.08 + a.w));
-  // Crisp edges in a few places, drifting, each one coming and going.
+  // Now and then a clearer edge in one place, gentle and short-lived.
   q = fold(q, vec2(0.35 * sin(T * 0.027 + a.y + b.w), 0.28 * cos(T * 0.034 + c.x)), T * 0.031 + a.z + c.y, 0.38,
-           0.5 * uAmpF.x * smoothstep(-0.2, 0.8, sin(T * 0.043 + b.x + c.z)), T * 0.07 + a.x);
+           0.24 * uAmpF.x * smoothstep(0.25, 0.95, sin(T * 0.043 + b.x + c.z)), T * 0.07 + a.x);
   q = fold(q, vec2(-0.3 * cos(T * 0.022 + b.y + a.w), -0.3 * sin(T * 0.029 + c.w)), -T * 0.024 + b.z + a.x, 0.32,
-           0.44 * uAmpF.y * smoothstep(-0.2, 0.8, sin(T * 0.037 + c.y + a.z)), -T * 0.06 + b.w);
+           0.2 * uAmpF.y * smoothstep(0.25, 0.95, sin(T * 0.037 + c.y + a.z)), -T * 0.06 + b.w);
   q = fold(q, vec2(0.15 * cos(T * 0.019 + c.x + a.y), 0.36 * sin(T * 0.025 + b.x)), T * 0.018 + c.z + b.y, 0.3,
-           0.4 * uAmpF.z * smoothstep(-0.2, 0.8, sin(T * 0.051 + a.w + c.w)), T * 0.05 + c.x);
+           0.18 * uAmpF.z * smoothstep(0.25, 0.95, sin(T * 0.051 + a.w + c.w)), T * 0.05 + c.x);
   // The cover fills the window (cropped like a photo, mirrored past its edges).
   float fit = 0.66 / max(1.0, uAspect / 1.4);
   vec3 col = cover(q * fit + 0.5);
@@ -425,8 +425,8 @@ function rollSeed(from?: number[]): number[] {
   const phases = Array.from({ length: 12 }, (_, i) => (from ? from[i] + rand(-0.7, 0.7) : rand(0, Math.PI * 2)));
   // A whirl may turn either way (fixed per window); a fold may be nearly gone for a song.
   // Each song keeps the way its whirls turn: reversing them would unwind the picture.
-  const whirls = Array.from({ length: 4 }, (_, i) => rand(0.65, 1.25) * Math.sign(from ? from[12 + i] : Math.random() - 0.3));
-  const folds = Array.from({ length: 3 }, () => (Math.random() < 0.2 ? rand(0.1, 0.3) : rand(0.6, 1.2)));
+  const whirls = Array.from({ length: 4 }, (_, i) => rand(0.6, 1.1) * Math.sign(from ? from[12 + i] : Math.random() - 0.3));
+  const folds = Array.from({ length: 3 }, () => (Math.random() < 0.35 ? rand(0, 0.2) : rand(0.6, 1.1)));
   return [...phases, ...whirls, ...folds];
 }
 
@@ -438,8 +438,8 @@ function downsample(src: CanvasImageSource, look: BackgroundLook = "cover"): HTM
   c.width = c.height = size;
   const ctx = c.getContext("2d")!;
   // The gradient keeps only the colors: small details melt into their surroundings
-  // (the same blur as 6 px at 64, at twice the texture size).
-  ctx.filter = look === "gradient" ? "blur(12px) saturate(1.1)" : "blur(2px) saturate(1.25)";
+  // (large, soft areas, like Apple Music).
+  ctx.filter = look === "gradient" ? "blur(16px) saturate(1.1)" : "blur(2px) saturate(1.25)";
   // Overdraw so the blur does not pull in transparent edges.
   const o = look === "gradient" ? 32 : 4;
   ctx.drawImage(src, -o, -o, size + 2 * o, size + 2 * o);

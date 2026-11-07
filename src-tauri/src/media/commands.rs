@@ -30,6 +30,16 @@ pub async fn media_prev(state: State<'_, AppState>) -> Result<(), String> {
     with_session(&state, |s| s.TrySkipPreviousAsync()?.get())
 }
 
+/// Next or previous track from a hotkey or the tray (off the calling thread:
+/// players can take a moment to answer).
+pub fn skip(app: &tauri::AppHandle, next: bool) {
+    use tauri::Manager;
+    let Some(session) = app.state::<AppState>().session.lock().unwrap().clone() else { return };
+    std::thread::spawn(move || {
+        let _ = if next { session.TrySkipNextAsync().and_then(|op| op.get()) } else { session.TrySkipPreviousAsync().and_then(|op| op.get()) };
+    });
+}
+
 #[tauri::command]
 pub async fn media_seek(state: State<'_, AppState>, ms: i64) -> Result<(), String> {
     with_session(&state, |s| {

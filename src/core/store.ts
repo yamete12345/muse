@@ -72,9 +72,10 @@ function set(patch: Partial<AppStore>) {
   state = { ...state, ...patch };
   clock.offsetMs = state.offsetMs + appOffsetOf(state);
   for (const l of listeners) l();
+  if (typeof document !== "undefined") document.documentElement.classList.toggle("glass-lite", !!state.settings.simpleGlass);
 }
 
-function subscribe(l: () => void) {
+export function subscribe(l: () => void) {
   listeners.add(l);
   return () => listeners.delete(l);
 }

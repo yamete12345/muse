@@ -1182,3 +1182,43 @@
     transform: scale(1.25);
   }
 }
+
+/*
+ * The list scrolls inside a mask (its fade at the top and bottom), and a mask
+ * hides what lies behind it from everything inside: a backdrop filter in there
+ * blurs nothing, yet still costs a layer, and Chromium redrawing part of the
+ * window drew those layers with visible seams. Inside the list, glass is
+ * tint, rim and light only.
+ */
+.sw-scroll .st-card,
+.sw-scroll .lg-simple,
+.sw-scroll .lg-refract,
+.sw-scroll .pv-badge,
+.sw-scroll .st-screen-widget {
+  backdrop-filter: none;
+}
+
+/* "Настраиваете: Окно и виджет | Обои", or the monitor being edited. */
+.st-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 0 4px;
+}
+
+.st-switch > span {
+  font-size: 13px;
+  font-weight: 720;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.st-note {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--muted);
+}

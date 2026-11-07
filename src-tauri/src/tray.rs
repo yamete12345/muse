@@ -93,6 +93,8 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         app,
         &[
             &MenuItem::with_id(app, "now", now, false, None::<&str>)?,
+            &MenuItem::with_id(app, "track:prev", "Предыдущий трек", playing, None::<&str>)?,
+            &MenuItem::with_id(app, "track:next", "Следующий трек", playing, None::<&str>)?,
             &lyrics,
             &source,
             &PredefinedMenuItem::separator(app)?,
@@ -134,6 +136,8 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
                     crate::change_offset(app, |_| 0);
                     return;
                 }
+                "track:next" => return crate::media::commands::skip(app, true),
+                "track:prev" => return crate::media::commands::skip(app, false),
                 "lyrics:wrong" => return show_search(app),
                 "lyrics:retry" => return crate::retry(app),
                 "wallpaper" => serde_json::json!({ "wallpaperEnabled": !s.wallpaper_enabled }),

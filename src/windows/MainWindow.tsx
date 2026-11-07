@@ -9,7 +9,7 @@ import { SettingsPage } from "../components/SettingsPage";
 import { Sidebar } from "../components/Sidebar";
 import { TitleBar } from "../components/TitleBar";
 import { UpdateToast } from "../components/UpdateToast";
-import { togglePlay } from "../core/api";
+import { nextTrack, prevTrack, togglePlay } from "../core/api";
 import { useMainStyle } from "../core/appearance";
 import { useStore } from "../core/store";
 import { useResolvedTheme } from "../core/theme";
@@ -64,10 +64,13 @@ export function MainWindow() {
 
   useEffect(() => {
     const onKey = async (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input, textarea, .sw")) return;
+      if ((e.target as Element | null)?.closest?.("input, textarea, .sw")) return;
       if (e.code === "Space") {
         e.preventDefault();
         togglePlay();
+      } else if ((e.code === "ArrowRight" || e.code === "ArrowLeft") && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        (e.code === "ArrowRight" ? nextTrack : prevTrack)();
       } else if (e.key === "F11") {
         e.preventDefault();
         const win = getCurrentWindow();

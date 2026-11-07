@@ -12,7 +12,8 @@ let frame = 0;
 function apply() {
   frame = 0;
   const e = last;
-  if (!e) return;
+  // Plain blur mode has no cursor light: skip the style work too.
+  if (!e || document.documentElement.classList.contains("glass-lite")) return;
   const now = new Set<HTMLElement>();
   let el = (e.target as Element | null)?.closest?.(SELECTOR) as HTMLElement | null;
   while (el) {

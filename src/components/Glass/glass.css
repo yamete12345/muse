@@ -164,3 +164,27 @@
   cursor: default;
   transform: none;
 }
+
+/*
+ * "Простое размытие" (settings → Общие): plain blur instead of glass. No
+ * refraction, colour boost, rim or cursor light, so weak GPUs only pay for
+ * the blur itself.
+ */
+.glass-lite .lg-simple,
+.glass-lite .lg-refract,
+.glass-lite .pane-glass.lg-simple,
+.glass-lite .widget-controls {
+  backdrop-filter: blur(16px);
+}
+
+.glass-lite .lg::before {
+  display: none;
+}
+
+.glass-lite .lg::after,
+.glass-lite .st-card::after,
+.glass-lite .st-preset::after,
+.glass-lite .pv::after,
+.glass-lite .widget-controls::after {
+  background: linear-gradient(180deg, var(--glass-sheen), transparent 45%);
+}
