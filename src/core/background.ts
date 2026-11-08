@@ -84,6 +84,7 @@ const GRADIENT_FRAG = TONE + `
 uniform sampler2D uA;
 uniform sampler2D uB;
 uniform float uBeat;
+uniform vec2 uBeatDir;
 uniform vec4 uPhA;
 uniform vec4 uPhB;
 uniform vec4 uPhC;
@@ -145,14 +146,16 @@ void main() {
            0.18 * uAmpF.z * smoothstep(0.25, 0.95, sin(T * 0.051 + a.w + c.w)), T * 0.05 + c.x);
   // The cover fills the window (cropped like a photo, mirrored past its edges).
   float fit = 0.66 / max(1.0, uAspect / 1.4);
-  vec3 col = cover(q * fit + 0.5);
+  vec2 uv = q * fit + 0.5;
+  vec3 col = cover(uv);
+  // The beat: every spot briefly takes on a little of its neighbour's colour,
+  // so dark patches lighten and light ones darken a touch, a new way each beat.
+  col = mix(col, cover(uv + uBeatDir * 0.24), uBeat * 0.6);
   // A second, larger copy turning the other way keeps it from looking like a photo.
   col = mix(col, cover(rot(1.9 + a.z - T * 0.021) * q * 0.42 + 0.5), 0.28);
   float l = dot(col, vec3(0.299, 0.587, 0.114));
   // White covers give a soft grey, not a glare (dark theme).
   col *= mix(1.12 - 0.42 * l, 1.0, uTheme);
-  // The beat: light areas flare a little, dark ones stay.
-  col *= 1.0 + uBeat * 0.3 * smoothstep(0.12, 0.6, l);
   gl_FragColor = vec4(tone(col), 1.0);
 }`;
 
@@ -184,6 +187,8 @@ export class MeshBackground {
   /** Beat pulse: `kick` jumps on a beat and decays; `beat` follows it softly. */
   private kick = 0;
   private beat = 0;
+  /** Which way colours shift on the current beat. */
+  private beatDir: [number, number] = [1, 0];
   /** Gradient look: random phases and strengths of its moves, eased toward a new roll per song. */
   private seed = rollSeed();
   private seedTarget = this.seed.slice();
@@ -225,7 +230,7 @@ export class MeshBackground {
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
-    for (const name of ["uA", "uB", "uMix", "uTime", "uTheme", "uAspect", "uBright", "uSat", "uBeat", "uPhA", "uPhB", "uPhC", "uAmpW", "uAmpF"])
+    for (const name of ["uA", "uB", "uMix", "uTime", "uTheme", "uAspect", "uBright", "uSat", "uBeat", "uBeatDir", "uPhA", "uPhB", "uPhC", "uAmpW", "uAmpF"])
       this.u[name] = gl.getUniformLocation(prog, name);
     gl.uniform1i(this.u.uA, 0);
     gl.uniform1i(this.u.uB, 1);
@@ -265,7 +270,13 @@ export class MeshBackground {
 
   /** A beat in the song, strength 0..1 (gradient look only). */
   pulse(strength: number) {
-    this.kick = Math.max(this.kick, strength);
+    // A new direction only for a fresh beat, not while one is still fading in.
+    if (this.kick < 0.25) {
+      const a = Math.random() * Math.PI * 2;
+      this.beatDir = [Math.cos(a), Math.sin(a)];
+    }
+    // Ordinary beats come in around 0.3–0.4: lift them so each one shows.
+    this.kick = Math.max(this.kick, 0.55 + 0.45 * strength);
   }
 
   setTheme(light: boolean) {
@@ -366,6 +377,7 @@ export class MeshBackground {
     gl.uniform1f(this.u.uBright, this.brightness);
     gl.uniform1f(this.u.uSat, this.saturation);
     gl.uniform1f(this.u.uBeat, this.beat);
+    gl.uniform2f(this.u.uBeatDir, this.beatDir[0], this.beatDir[1]);
     if (this.look === "gradient") {
       const r = this.seed;
       gl.uniform4f(this.u.uPhA, r[0], r[1], r[2], r[3]);
@@ -392,9 +404,9 @@ export class MeshBackground {
       this.theme = this.themeTarget > this.theme ? Math.min(this.themeTarget, this.theme + step) : Math.max(this.themeTarget, this.theme - step);
     }
 
-    // Quick rise, slower fall: a flash, not a flicker.
-    this.kick *= Math.exp(-dt / 0.2);
-    this.beat += (this.kick - this.beat) * Math.min(1, dt / 0.045);
+    // Quick to change, a little slower to settle back.
+    this.kick *= Math.exp(-dt / 0.28);
+    this.beat += (this.kick - this.beat) * Math.min(1, dt / 0.06);
     const pulsing = this.beat > 0.003 || this.kick > 0.003;
     let settling = false;
     const k = Math.min(1, dt / 3);

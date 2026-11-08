@@ -44,7 +44,7 @@ export interface SceneStyle {
   bgBrightness: number;
   bgSaturation: number;
   bgSpeed: number;
-  /** Gradient: light areas flare with the beat. */
+  /** Gradient: colours shift a little on every beat. */
   bgBeat: boolean;
 }
 
