@@ -1228,3 +1228,15 @@
   width: 100%;
   box-sizing: border-box;
 }
+
+/* "Сейчас: игровой режим…" under the performance settings. */
+.st-status {
+  margin: 0;
+  padding: 12px 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.st-status.is-on {
+  color: rgb(var(--text-rgb));
+}

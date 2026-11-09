@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 
 import { PlaybackClock } from "./clock";
 import type { PartsPayload } from "./parts";
-import type { CoverPayload, LyricsPayload, MediaState, Settings, Snapshot } from "./types";
+import type { CoverPayload, LyricsPayload, MediaState, PowerState, Settings, Snapshot } from "./types";
 
 export interface AppStore {
   ready: boolean;
@@ -15,6 +15,7 @@ export interface AppStore {
   offsetMs: number;
   /** Who sings which part of the playing track, when known. */
   parts: PartsPayload | null;
+  power: PowerState;
 }
 
 const defaultSettings: Settings = {
@@ -36,6 +37,9 @@ const defaultSettings: Settings = {
   wallpaperStyle: null,
   simpleGlass: false,
   bgFps: 30,
+  fps: 60,
+  batterySaver: true,
+  gameMode: "auto",
   autostart: false,
   closeToTray: true,
   updateCheck: true,
@@ -54,7 +58,7 @@ export function patchSettingsLocal(patch: Partial<Settings>) {
 }
 let localUntil = 0;
 
-let state: AppStore = { ready: false, media: null, cover: null, lyrics: null, settings: defaultSettings, offsetMs: 0, parts: null };
+let state: AppStore = { ready: false, media: null, cover: null, lyrics: null, settings: defaultSettings, offsetMs: 0, parts: null, power: { battery: false, game: false } };
 const listeners = new Set<() => void>();
 
 export const clock = new PlaybackClock();
@@ -107,7 +111,11 @@ export async function initStore() {
       set({ settings: e.payload });
     }),
     listen<number>("offset:changed", (e) => set({ offsetMs: e.payload })),
+    listen<PowerState>("power:state", (e) => set({ power: e.payload })),
   ]);
+  invoke<PowerState>("power_state")
+    .then((power) => set({ power }))
+    .catch(() => {});
 
   const snap = await invoke<Snapshot>("get_snapshot");
   clock.sync(snap.media);

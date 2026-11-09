@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { useStickyCover } from "../core/appearance";
 import { MeshBackground, noiseDataUrl } from "../core/background";
+import { frameRateOf, useSaving } from "../core/power";
 import { useStore } from "../core/store";
 import type { SceneStyle } from "../core/style";
 
@@ -20,11 +21,13 @@ export function Background({ light, scene, syncWindow = true }: Props) {
   const bg = useRef<MeshBackground | null>(null);
   const cover = useStickyCover();
   const playing = useStore((s) => s.media?.playing ?? false);
-  const fps = useStore((s) => s.settings.bgFps);
+  const fps = useStore(frameRateOf);
+  // Saving mode (a game, the battery): the background stands still.
+  const still = useSaving() !== null;
   const noise = useMemo(noiseDataUrl, []);
   const solid = scene.background === "solid";
   const look = scene.background === "gradient" ? "gradient" : "cover";
-  const beat = look === "gradient" && scene.bgBeat && !solid;
+  const beat = look === "gradient" && scene.bgBeat && !solid && !still;
 
   useEffect(() => {
     if (solid) return;
@@ -51,11 +54,11 @@ export function Background({ light, scene, syncWindow = true }: Props) {
 
   useEffect(() => bg.current?.setCover(cover), [cover, solid, look]);
   useEffect(() => bg.current?.setPlaying(playing), [playing, solid, look]);
-  useEffect(() => bg.current?.setFps(fps || 30), [fps, solid, look]);
+  useEffect(() => bg.current?.setFps(fps), [fps, solid, look]);
   useEffect(() => bg.current?.setTheme(light), [light, solid, look]);
   useEffect(
-    () => bg.current?.setScene(scene.bgBrightness, scene.bgSaturation, scene.background === "static" ? 0 : scene.bgSpeed),
-    [scene.bgBrightness, scene.bgSaturation, scene.bgSpeed, scene.background, solid, look],
+    () => bg.current?.setScene(scene.bgBrightness, scene.bgSaturation, scene.background === "static" || still ? 0 : scene.bgSpeed),
+    [scene.bgBrightness, scene.bgSaturation, scene.bgSpeed, scene.background, solid, look, still],
   );
 
   // The beat: MUSE hears the playing app only while this window shows the pulse.

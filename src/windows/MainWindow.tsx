@@ -45,7 +45,7 @@ export function MainWindow() {
   // Stop animating entirely while minimized.
   useEffect(() => {
     const win = getCurrentWindow();
-    const unlisten = win.onResized(async () => setPaused(await win.isMinimized()));
+    const unlisten = win.onResized(async () => setPaused(await win.isMinimized(), "minimized"));
     return () => {
       unlisten.then((f) => f());
     };

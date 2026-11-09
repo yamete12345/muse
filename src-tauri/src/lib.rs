@@ -3,6 +3,7 @@ mod audio;
 mod logger;
 mod lyrics;
 mod media;
+mod power;
 mod settings;
 mod state;
 mod tray;
@@ -240,6 +241,12 @@ fn migrate_data_dir(dir: &std::path::Path) {
     }
 }
 
+/// On battery? Is a game (or a video) filling the screen?
+#[tauri::command]
+fn power_state() -> power::PowerState {
+    power::state()
+}
+
 /// A window shows (or stops showing) the background that pulses to the beat.
 #[tauri::command]
 fn listen_beat(window: tauri::Window, on: bool) {
@@ -306,6 +313,7 @@ pub fn run() {
             }
             media::gsmtc::spawn(handle.clone());
             audio::spawn(handle.clone());
+            power::spawn(handle.clone());
             widget::sync(handle);
             wallpaper::sync(handle);
             wallpaper::spawn_watcher(handle.clone());
@@ -335,6 +343,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             listen_beat,
+            power_state,
             get_snapshot,
             set_settings,
             set_offset,

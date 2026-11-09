@@ -34,6 +34,14 @@ export interface CoverPayload {
 
 export type ThemeSetting = "dark" | "light" | "system";
 
+export type GameMode = "auto" | "always" | "off";
+
+/** On battery? A game (or a video) filling the screen? (Rust: power.rs) */
+export interface PowerState {
+  battery: boolean;
+  game: boolean;
+}
+
 export interface Settings {
   theme: ThemeSetting;
   widgetEnabled: boolean;
@@ -58,7 +66,14 @@ export interface Settings {
   widgetStyle: unknown;
   wallpaperStyle: unknown;
   simpleGlass: boolean;
+  /** Old background-only frame rate; `fps` covers everything now. */
   bgFps: number;
+  /** Frames per second of all animation: 24, 30 or 60. */
+  fps: number;
+  /** On battery, go easy like in game mode. */
+  batterySaver: boolean;
+  /** "auto": while something fills the screen; "always"; "off". */
+  gameMode: GameMode;
   autostart: boolean;
   /** The close button hides to the tray instead of quitting. */
   closeToTray: boolean;

@@ -511,8 +511,32 @@
   z-index: 4;
   overflow: hidden;
   pointer-events: none;
+  transform-origin: 0 0;
   box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.7);
-  will-change: left, top, width, height;
+  will-change: transform;
+}
+
+/* Under the flying copy: the real artwork waits hidden, its glow at zero,
+   so after landing the glow fades in instead of popping up. Its shadow too:
+   otherwise an empty dark square waits where the artwork will land. */
+.is-flight-target .lc-frame {
+  visibility: hidden;
+}
+
+.wallpaper-art-cover,
+.wallpaper-track-cover {
+  transition: box-shadow 0.5s ease;
+}
+
+.wallpaper-art-cover.is-flight-target,
+.wallpaper-track-cover.is-flight-target {
+  box-shadow: none;
+  transition: none;
+}
+
+.is-flight-target .lc-halo-wrap {
+  opacity: 0;
+  transition: none;
 }
 
 .wallpaper-flight img {

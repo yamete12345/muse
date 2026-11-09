@@ -45,7 +45,14 @@ pub struct Settings {
     pub widget_style: serde_json::Value,
     pub wallpaper_style: serde_json::Value,
     pub simple_glass: bool,
+    /// Old background-only frame rate; `fps` covers everything now.
     pub bg_fps: u32,
+    /// Frames per second of all animation: 24, 30 or 60.
+    pub fps: u32,
+    /// On battery, go easy like in game mode.
+    pub battery_saver: bool,
+    /// "auto": while something fills the screen; "always"; "off".
+    pub game_mode: String,
     pub autostart: bool,
     /// The close button hides the main window to the tray instead of quitting.
     pub close_to_tray: bool,
@@ -87,6 +94,9 @@ impl Default for Settings {
             wallpaper_style: serde_json::Value::Null,
             simple_glass: false,
             bg_fps: 30,
+            fps: 60,
+            battery_saver: true,
+            game_mode: "auto".into(),
             autostart: false,
             close_to_tray: true,
             update_check: true,

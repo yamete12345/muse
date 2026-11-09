@@ -19,7 +19,11 @@ export function LiveCover({ src, className = "", halo = false }: Props) {
 
   return (
     <div className={`lc ${live ? "is-live" : ""} ${playing ? "is-playing" : ""} ${className}`}>
-      {halo && <img className="lc-halo" src={src} alt="" draggable={false} aria-hidden />}
+      {halo && (
+        <span className="lc-halo-wrap" aria-hidden>
+          <img className="lc-halo" src={src} alt="" draggable={false} />
+        </span>
+      )}
       <div className="lc-frame">
         <img className="lc-img" src={src} alt="" draggable={false} />
         <span className="lc-sheen" aria-hidden />

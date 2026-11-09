@@ -104,6 +104,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &CheckMenuItem::with_id(app, "wallpaper", "Живые обои", true, s.wallpaper_enabled, None::<&str>)?,
             &CheckMenuItem::with_id(app, "widget", "Виджет на рабочем столе", true, s.widget_enabled, None::<&str>)?,
             &CheckMenuItem::with_id(app, "widget-edit", "Переместить виджет", s.widget_enabled, s.widget_edit, None::<&str>)?,
+            &CheckMenuItem::with_id(app, "game-mode", "Игровой режим", true, s.game_mode == "always", None::<&str>)?,
             &theme,
             &CheckMenuItem::with_id(app, "autostart", "Запускать вместе с Windows", true, s.autostart, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
@@ -144,6 +145,8 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
                 "widget" => serde_json::json!({ "widgetEnabled": !s.widget_enabled, "widgetEdit": false }),
                 "widget-edit" => serde_json::json!({ "widgetEdit": !s.widget_edit }),
                 "autostart" => serde_json::json!({ "autostart": !s.autostart }),
+                // On: always; off: back to switching on by itself for fullscreen games.
+                "game-mode" => serde_json::json!({ "gameMode": if s.game_mode == "always" { "auto" } else { "always" } }),
                 id if id.starts_with("theme:") => serde_json::json!({ "theme": &id[6..] }),
                 "source:hint" => return,
                 id if id.starts_with("source:") => serde_json::json!({ "mediaSource": &id[7..] }),

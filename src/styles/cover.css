@@ -146,3 +146,13 @@
     animation: none !important;
   }
 }
+
+/* The halo's own animation drives its opacity; the wrapper fades it in and
+   out as a whole (while the artwork flies in, see WallpaperWindow). */
+.lc-halo-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transition: opacity 0.9s ease;
+  pointer-events: none;
+}

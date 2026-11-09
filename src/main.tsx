@@ -4,6 +4,8 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import "@fontsource-variable/inter";
 
 import { installCursorLight } from "./core/light";
+import { installLoops } from "./core/loops";
+import { installPower } from "./core/power";
 import { initStore } from "./core/store";
 import { MainWindow } from "./windows/MainWindow";
 import { WallpaperWindow } from "./windows/WallpaperWindow";
@@ -26,6 +28,8 @@ const views: Record<string, () => JSX.Element> = {
 const View = label.startsWith("wallpaper-") ? WallpaperWindow : views[label] ?? MainWindow;
 
 installCursorLight();
+installPower();
+installLoops();
 
 // Page errors go to the same log file as Rust's (settings → Общие → Журнал).
 const report = (message: string) => invoke("log_frontend", { level: "error", message: `${label}: ${message}` }).catch(() => {});

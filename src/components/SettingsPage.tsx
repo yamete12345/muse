@@ -32,7 +32,8 @@ import {
   type WidgetStyle,
 } from "../core/style";
 import type { PartsMode } from "../core/parts";
-import type { MonitorInfo, RomajiMode, Settings, ThemeSetting } from "../core/types";
+import type { GameMode, MonitorInfo, RomajiMode, Settings, ThemeSetting } from "../core/types";
+import { useSaving } from "../core/power";
 import { openView, useView } from "../core/ui";
 import { checkForUpdate, installUpdate, openLink, REPO_URL, useUpdate } from "../core/update";
 
@@ -241,10 +242,10 @@ function General({ s }: { s: Settings }) {
           value={s.simpleGlass}
           onChange={(simpleGlass) => updateSettings({ simpleGlass })}
         />
-        <Row label="Частота анимации фона">
+        <Row label="Частота кадров" hint="Для всей анимации: текст, фон, обои. Меньше кадров — меньше нагрузка">
           <Segmented<number>
-            value={s.bgFps}
-            onChange={(bgFps) => updateSettings({ bgFps })}
+            value={s.fps}
+            onChange={(fps) => updateSettings({ fps })}
             options={[
               [24, "24"],
               [30, "30"],
@@ -252,6 +253,27 @@ function General({ s }: { s: Settings }) {
             ]}
           />
         </Row>
+        <Row
+          label="Игровой режим"
+          hint="Обои засыпают, фон замирает, анимация идёт с частотой 24 кадра, а видеокарта достаётся игре. «Авто» — пока игра или видео на весь экран"
+        >
+          <Segmented<GameMode>
+            value={s.gameMode}
+            onChange={(gameMode) => updateSettings({ gameMode })}
+            options={[
+              ["auto", "Авто"],
+              ["always", "Всегда"],
+              ["off", "Выкл"],
+            ]}
+          />
+        </Row>
+        <Toggle
+          label="Экономия на батарее"
+          hint="Когда ноутбук работает от батареи — то же, что в игровом режиме"
+          value={s.batterySaver}
+          onChange={(batterySaver) => updateSettings({ batterySaver })}
+        />
+        <SavingStatus />
       </Section>
       <Section title="Система">
         <Row label="Кнопка закрытия" hint={s.closeToTray ? "MUSE продолжит работать в трее" : "Приложение полностью закроется"}>
@@ -291,6 +313,21 @@ function General({ s }: { s: Settings }) {
       </Section>
     </>
   );
+}
+
+/** Whether saving mode is on right now, and why. */
+function SavingStatus() {
+  const saving = useSaving();
+  const game = useStore((s) => s.power.game);
+  const text =
+    saving === "game"
+      ? game
+        ? "Сейчас: игровой режим, на весь экран открыта игра или видео"
+        : "Сейчас: игровой режим включён всегда"
+      : saving === "battery"
+        ? "Сейчас: экономия, ноутбук работает от батареи"
+        : "Сейчас: обычный режим";
+  return <p className={`st-status ${saving ? "is-on" : ""}`}>{text}</p>;
 }
 
 type Surface = "main" | "widget" | "wallpaper";
