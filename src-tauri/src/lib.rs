@@ -1,5 +1,6 @@
 #[macro_use]
 mod audio;
+mod glass;
 mod logger;
 mod lyrics;
 mod media;
@@ -340,11 +341,19 @@ pub fn run() {
                     window.app_handle().exit(0);
                 }
             }
-            (widget::LABEL, WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
+            (widget::LABEL, WindowEvent::Moved(_) | WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. }) => {
+                if !matches!(event, WindowEvent::Moved(_)) {
+                    widget::resized(window.app_handle());
+                }
                 widget::remember_bounds(window);
                 let _ = window.app_handle().emit_to("main", "widget:moved", ());
             }
-            (label, WindowEvent::Destroyed) => audio::forget(label),
+            (label, WindowEvent::Destroyed) => {
+                if label == widget::LABEL {
+                    glass::hide();
+                }
+                audio::forget(label)
+            }
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![

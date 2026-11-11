@@ -63,8 +63,7 @@ export function Preview({ look, variant, scene, widget, column }: Props) {
             widget.background === "tint" || widget.background === "cover"
               ? `rgba(${hexToRgb(widget.tint) ?? "11, 13, 15"}, ${widget.opacity})`
               : "transparent",
-          // The beautiful glass: the desktop blurred, corners as Windows rounds them.
-          borderRadius: glass ? 8 : widget.radius,
+          borderRadius: widget.radius,
           backdropFilter: glass ? "blur(18px) saturate(1.3)" : undefined,
         }
       : undefined;
@@ -78,6 +77,7 @@ export function Preview({ look, variant, scene, widget, column }: Props) {
         {variant === "widget" && widget?.background === "cover" && cover && (
           <div className="widget-cover-bg" style={{ backgroundImage: `url(${cover})`, opacity: widget.coverOpacity }} />
         )}
+        {glass && <div className="widget-frost" style={{ opacity: widget!.frost }} />}
         {line ? (
           <LineRunner
             look={previewLook}

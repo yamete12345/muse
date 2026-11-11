@@ -38,7 +38,7 @@ pub fn sync(app: &AppHandle) {
     let _ = win.set_ignore_cursor_events(!interactive);
     // Older versions used the system acrylic backdrop: make sure it is gone.
     let _ = win.set_effects(None);
-    set_glass(&win, settings.widget_acrylic);
+    set_glass(&win, settings.widget_acrylic, settings.widget_glass_radius);
     set_layer(&win, settings.widget_on_top);
 }
 
@@ -78,18 +78,53 @@ const WCA_ACCENT_POLICY: u32 = 19;
 const ACCENT_DISABLED: u32 = 0;
 const ACCENT_ENABLE_BLURBEHIND: u32 = 3;
 
-/// Glass widget: the desktop behind it blurred by Windows, and corners
-/// rounded by the system (DWM) so the blur has smooth rounded edges too.
-fn set_glass(win: &WebviewWindow, on: bool) {
-    let Ok(h) = win.hwnd() else { return };
-    let mut policy = AccentPolicy { state: if on { ACCENT_ENABLE_BLURBEHIND } else { ACCENT_DISABLED }, flags: 0, color: 0, animation: 0 };
-    let mut data = CompositionData { attribute: WCA_ACCENT_POLICY, data: &mut policy as *mut _ as *mut _, size: std::mem::size_of::<AccentPolicy>() };
-    let corners = if on { DWMWCP_ROUND } else { DWMWCP_DONOTROUND };
-    unsafe {
-        if let Some(set) = set_composition() {
-            set(h.0 as isize, &mut data);
+/// Glass widget: the desktop behind it blurred by Windows, with rounded
+/// corners of `radius` (logical pixels). Drawn by the compositor where it can
+/// (any radius, smooth edges, see glass.rs); otherwise the window's accent blur
+/// with the system's own rounded corners.
+fn set_glass(win: &WebviewWindow, on: bool, radius: f64) {
+    let w = win.clone();
+    let _ = win.run_on_main_thread(move || {
+        let Ok(h) = w.hwnd() else { return };
+        let hwnd = h.0 as isize;
+        let composed = on && show_pane(&w, radius);
+        if !on {
+            crate::glass::hide();
         }
-        let _ = DwmSetWindowAttribute(HWND(h.0 as _), DWMWA_WINDOW_CORNER_PREFERENCE, &corners as *const _ as *const _, std::mem::size_of_val(&corners) as u32);
+        let accent = on && !composed;
+        let mut policy = AccentPolicy { state: if accent { ACCENT_ENABLE_BLURBEHIND } else { ACCENT_DISABLED }, flags: 0, color: 0, animation: 0 };
+        let mut data = CompositionData { attribute: WCA_ACCENT_POLICY, data: &mut policy as *mut _ as *mut _, size: std::mem::size_of::<AccentPolicy>() };
+        let corners = if accent { DWMWCP_ROUND } else { DWMWCP_DONOTROUND };
+        unsafe {
+            if let Some(set) = set_composition() {
+                set(hwnd, &mut data);
+            }
+            let _ = DwmSetWindowAttribute(HWND(hwnd as _), DWMWA_WINDOW_CORNER_PREFERENCE, &corners as *const _ as *const _, std::mem::size_of_val(&corners) as u32);
+        }
+    });
+}
+
+/// The compositor's glass at the window's size. Main thread only.
+fn show_pane(win: &WebviewWindow, radius: f64) -> bool {
+    let (Ok(h), Ok(size)) = (win.hwnd(), win.inner_size()) else { return false };
+    let scale = win.scale_factor().unwrap_or(1.0);
+    match crate::glass::show(h.0 as isize, size.width as f32, size.height as f32, (radius * scale) as f32) {
+        Ok(()) => true,
+        Err(e) => {
+            crate::log_warn!("widget", "compositor glass unavailable, using the accent blur: {e}");
+            crate::glass::hide();
+            false
+        }
+    }
+}
+
+/// The widget changed size: the glass follows. Called on the main thread.
+pub fn resized(app: &AppHandle) {
+    let Some(win) = app.get_webview_window(LABEL) else { return };
+    let Ok(h) = win.hwnd() else { return };
+    if crate::glass::showing(h.0 as isize) {
+        let radius = app.state::<AppState>().settings.lock().unwrap().widget_glass_radius;
+        show_pane(&win, radius);
     }
 }
 

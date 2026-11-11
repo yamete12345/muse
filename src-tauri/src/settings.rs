@@ -15,7 +15,10 @@ pub struct Settings {
     /// Not persisted: the widget always starts locked.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub widget_edit: bool,
+    /// The desktop blurred behind the widget (its glass in the beautiful mode).
     pub widget_acrylic: bool,
+    /// Corner radius of that glass, logical pixels: Windows cuts the blur to it.
+    pub widget_glass_radius: f64,
     /// Above all windows instead of on the wallpaper layer.
     pub widget_on_top: bool,
     /// Clicks pass through the widget to whatever is below.
@@ -77,6 +80,7 @@ impl Default for Settings {
             widget_enabled: false,
             widget_edit: false,
             widget_acrylic: false,
+            widget_glass_radius: 8.0,
             widget_on_top: false,
             widget_click_through: true,
             widget_linked: false,
@@ -171,6 +175,7 @@ pub fn update(app: &AppHandle, patch: serde_json::Value) -> Result<Settings, Str
     if old.widget_enabled != new.widget_enabled
         || old.widget_edit != new.widget_edit
         || old.widget_acrylic != new.widget_acrylic
+        || old.widget_glass_radius != new.widget_glass_radius
         || old.widget_on_top != new.widget_on_top
         || old.widget_click_through != new.widget_click_through
         || old.theme != new.theme

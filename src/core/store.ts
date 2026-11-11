@@ -22,6 +22,7 @@ const defaultSettings: Settings = {
   theme: "dark",
   widgetEnabled: false,
   widgetAcrylic: false,
+  widgetGlassRadius: 8,
   widgetOnTop: false,
   widgetClickThrough: true,
   widgetLinked: false,

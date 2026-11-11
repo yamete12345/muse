@@ -424,7 +424,7 @@ function WidgetPage({ s }: { s: Settings }) {
   // The window's blur follows the glass mode (Rust applies it).
   const setLook = (p: Partial<WidgetStyle>) => {
     const next = { ...w, ...p };
-    updateSettings({ widgetStyle: next, widgetAcrylic: widgetBlur(next) });
+    updateSettings({ widgetStyle: next, widgetAcrylic: widgetBlur(next), widgetGlassRadius: next.radius });
   };
   const glass = widgetBlur(w);
   const copyMain = () => updateSettings({ widgetStyle: { ...w, lyrics: keepSize(ownMain(s).lyrics, w.lyrics) } });
@@ -544,7 +544,7 @@ function WidgetPage({ s }: { s: Settings }) {
         {w.background === "tint" && (
           <Row
             label="Стекло"
-            hint={glass ? "Windows размывает рабочий стол за виджетом и сама скругляет углы" : "Только тонировка, без размытия: меньше нагрузка"}
+            hint={glass ? "Windows размывает рабочий стол за виджетом" : "Только тонировка, без размытия: меньше нагрузка"}
           >
             <Segmented<WidgetGlass>
               value={w.glass}
@@ -564,16 +564,27 @@ function WidgetPage({ s }: { s: Settings }) {
             <Slider label="Непрозрачность" value={w.opacity} min={0} max={1} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(opacity) => setWidget(s, { opacity })} />
           </>
         )}
+        {glass && (
+          <Slider
+            label="Мутность"
+            hint="Матовая дымка поверх размытия: от чистого стекла до матового"
+            value={w.frost}
+            min={0}
+            max={1}
+            step={0.01}
+            format={(v) => (v < 0.005 ? "Чистое" : `${Math.round(v * 100)}%`)}
+            onChange={(frost) => setWidget(s, { frost })}
+          />
+        )}
         {w.background === "cover" && (
           <Slider label="Яркость обложки" value={w.coverOpacity} min={0.1} max={1} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(coverOpacity) => setWidget(s, { coverOpacity })} />
         )}
         <Slider
           label="Скругление углов"
-          hint={glass ? "У красивого стекла углы скругляет Windows" : undefined}
-          value={glass ? 8 : w.radius}
+          hint={glass && w.radius === 8 ? "8 px — углы скругляет сама Windows, края самые гладкие" : undefined}
+          value={w.radius}
           min={0}
           max={40}
-          disabled={glass}
           format={(v) => `${v} px`}
           onChange={(radius) => setWidget(s, { radius })}
         />

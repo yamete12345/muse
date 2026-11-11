@@ -1,6 +1,6 @@
 [package]
 name = "muse"
-version = "0.5.1"
+version = "0.5.2"
 description = "Synced lyrics in the style of Apple Music"
 edition = "2021"
 
@@ -26,10 +26,16 @@ base64 = "0.22"
 sha2 = "0.10"
 # The COM `implement` macro expands to paths in windows-core.
 windows-core = "0.61"
+# Vector2 for Windows.UI.Composition (the widget's glass).
+windows-numerics = "0.2"
 windows = { version = "0.61", features = [
   "ApplicationModel",
   "Foundation",
   "Foundation_Collections",
+  "System",
+  "UI_Composition",
+  "UI_Composition_Desktop",
+  "Win32_System_WinRT_Composition",
   "Media_Control",
   "Storage_Streams",
   "Win32_Foundation",

@@ -75,6 +75,8 @@ export interface WidgetStyle {
   controls: boolean;
   format: WidgetFormat;
   glass: WidgetGlass;
+  /** The beautiful glass: a frosted haze over the blur, 0 (clear) to 1 (matte). */
+  frost: number;
   /** "Одна строка": colour of the word being sung; "auto" follows the text's accent. */
   wordColor: string;
   /** "Одна строка": brightness of the other words; null follows the text's inactive lines. */
@@ -147,6 +149,7 @@ export const DEFAULT_WIDGET: WidgetStyle = {
   controls: true,
   format: "lines",
   glass: "beauty",
+  frost: 0,
   wordColor: "auto",
   restBrightness: null,
   levels: true,

@@ -2345,7 +2345,7 @@ dependencies = [
 
 [[package]]
 name = "muse"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "base64 0.22.1",
  "regex",
@@ -2362,6 +2362,7 @@ dependencies = [
  "tokio",
  "windows 0.61.3",
  "windows-core 0.61.2",
+ "windows-numerics 0.2.0",
 ]
 
 [[package]]

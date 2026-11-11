@@ -47,6 +47,8 @@ export interface Settings {
   widgetEnabled: boolean;
   widgetEdit?: boolean;
   widgetAcrylic: boolean;
+  /** Corner radius of the beautiful glass, px (Rust cuts the window to it). */
+  widgetGlassRadius: number;
   widgetOnTop: boolean;
   widgetClickThrough: boolean;
   widgetLinked: boolean;
