@@ -253,6 +253,12 @@ fn listen_beat(window: tauri::Window, on: bool) {
     audio::want(window.label(), on);
 }
 
+/// A window shows (or stops showing) bars that follow the music's loudness.
+#[tauri::command]
+fn listen_levels(window: tauri::Window, on: bool) {
+    audio::want_levels(window.label(), on);
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))
@@ -338,11 +344,12 @@ pub fn run() {
                 widget::remember_bounds(window);
                 let _ = window.app_handle().emit_to("main", "widget:moved", ());
             }
-            (label, WindowEvent::Destroyed) => audio::want(label, false),
+            (label, WindowEvent::Destroyed) => audio::forget(label),
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             listen_beat,
+            listen_levels,
             power_state,
             get_snapshot,
             set_settings,

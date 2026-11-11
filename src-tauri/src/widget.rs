@@ -1,10 +1,10 @@
 //! Desktop widget: a transparent window that lives on the wallpaper layer.
 
-use tauri::window::{Effect, EffectsBuilder};
 use serde::Serialize;
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use windows::core::w;
 use windows::Win32::Foundation::HWND;
+use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND, DWMWCP_ROUND};
 use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SetWindowLongPtrW, GWLP_HWNDPARENT};
 
 use crate::state::AppState;
@@ -36,9 +36,61 @@ pub fn sync(app: &AppHandle) {
     // Locked + click-through: clicks fall through. Edit mode: drag and resize.
     let interactive = settings.widget_edit || !settings.widget_click_through;
     let _ = win.set_ignore_cursor_events(!interactive);
-    let effects = settings.widget_acrylic.then(|| EffectsBuilder::new().effect(Effect::Acrylic).build());
-    let _ = win.set_effects(effects);
+    // Older versions used the system acrylic backdrop: make sure it is gone.
+    let _ = win.set_effects(None);
+    set_glass(&win, settings.widget_acrylic);
     set_layer(&win, settings.widget_on_top);
+}
+
+#[repr(C)]
+struct AccentPolicy {
+    state: u32,
+    flags: u32,
+    /// Tint, 0xAABBGGRR; the page draws its own, so fully transparent.
+    color: u32,
+    animation: u32,
+}
+
+#[repr(C)]
+struct CompositionData {
+    attribute: u32,
+    data: *mut core::ffi::c_void,
+    size: usize,
+}
+
+/// `SetWindowCompositionAttribute` from user32. Undocumented (so not in the
+/// import library, looked up at run time), but the one way to blur behind a
+/// window that is never active: Windows 11's system backdrops (acrylic, mica)
+/// turn into a flat fill on inactive windows, and the widget never is active.
+type SetComposition = unsafe extern "system" fn(isize, *mut CompositionData) -> i32;
+
+fn set_composition() -> Option<SetComposition> {
+    use windows::core::{s, w};
+    use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
+    unsafe {
+        let user32 = GetModuleHandleW(w!("user32.dll")).ok()?;
+        let f = GetProcAddress(user32, s!("SetWindowCompositionAttribute"))?;
+        Some(std::mem::transmute::<unsafe extern "system" fn() -> isize, SetComposition>(f))
+    }
+}
+
+const WCA_ACCENT_POLICY: u32 = 19;
+const ACCENT_DISABLED: u32 = 0;
+const ACCENT_ENABLE_BLURBEHIND: u32 = 3;
+
+/// Glass widget: the desktop behind it blurred by Windows, and corners
+/// rounded by the system (DWM) so the blur has smooth rounded edges too.
+fn set_glass(win: &WebviewWindow, on: bool) {
+    let Ok(h) = win.hwnd() else { return };
+    let mut policy = AccentPolicy { state: if on { ACCENT_ENABLE_BLURBEHIND } else { ACCENT_DISABLED }, flags: 0, color: 0, animation: 0 };
+    let mut data = CompositionData { attribute: WCA_ACCENT_POLICY, data: &mut policy as *mut _ as *mut _, size: std::mem::size_of::<AccentPolicy>() };
+    let corners = if on { DWMWCP_ROUND } else { DWMWCP_DONOTROUND };
+    unsafe {
+        if let Some(set) = set_composition() {
+            set(h.0 as isize, &mut data);
+        }
+        let _ = DwmSetWindowAttribute(HWND(h.0 as _), DWMWA_WINDOW_CORNER_PREFERENCE, &corners as *const _ as *const _, std::mem::size_of_val(&corners) as u32);
+    }
 }
 
 fn set_layer(win: &WebviewWindow, on_top: bool) {

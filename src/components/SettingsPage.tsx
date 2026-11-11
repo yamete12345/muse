@@ -29,6 +29,9 @@ import {
   type MainStyle,
   type WallpaperStyle,
   type WidgetBackground,
+  type WidgetFormat,
+  type WidgetGlass,
+  widgetBlur,
   type WidgetStyle,
 } from "../core/style";
 import type { PartsMode } from "../core/parts";
@@ -418,9 +421,12 @@ function WidgetPage({ s }: { s: Settings }) {
   const w = ownWidget(s);
   const shown = resolveWidget(s);
   const linked = s.widgetLinked;
-  const setBackground = (background: WidgetBackground) => {
-    updateSettings({ widgetStyle: { ...w, background }, widgetAcrylic: background === "acrylic" });
+  // The window's blur follows the glass mode (Rust applies it).
+  const setLook = (p: Partial<WidgetStyle>) => {
+    const next = { ...w, ...p };
+    updateSettings({ widgetStyle: next, widgetAcrylic: widgetBlur(next) });
   };
+  const glass = widgetBlur(w);
   const copyMain = () => updateSettings({ widgetStyle: { ...w, lyrics: keepSize(ownMain(s).lyrics, w.lyrics) } });
 
   return (
@@ -462,6 +468,46 @@ function WidgetPage({ s }: { s: Settings }) {
 
       <Preview variant="widget" look={shown.lyrics} widget={shown} />
 
+      <Section
+        title="Формат"
+        hint={w.format === "line" ? "Видна только строка, которая поётся; подсветка бежит по словам" : "Текст прокручивается, как в главном окне"}
+      >
+        <Row label="Показывать">
+          <Segmented<WidgetFormat>
+            value={w.format}
+            onChange={(format) => setWidget(s, { format })}
+            options={[
+              ["lines", "Несколько строк"],
+              ["line", "Одна строка"],
+            ]}
+          />
+        </Row>
+        {w.format === "line" && (
+          <>
+            <Row label="Цвет текущего слова" hint={w.wordColor === "auto" ? "Как цвет выделения текста" : "Свой цвет виджета"}>
+              <ColorField value={w.wordColor} onChange={(wordColor) => setWidget(s, { wordColor })} />
+            </Row>
+            <Toggle
+              label="Остальные слова как неактивные строки"
+              hint="Яркость берётся из настроек текста"
+              value={w.restBrightness === null}
+              onChange={(v) => setWidget(s, { restBrightness: v ? null : shown.lyrics.unsung })}
+            />
+            {w.restBrightness !== null && (
+              <Slider
+                label="Яркость остальных слов"
+                value={w.restBrightness}
+                min={0.06}
+                max={0.9}
+                step={0.01}
+                format={(v) => `${Math.round(v * 100)}%`}
+                onChange={(restBrightness) => setWidget(s, { restBrightness })}
+              />
+            )}
+          </>
+        )}
+      </Section>
+
       <Section title="Вид текста">
         <Toggle
           label="Как главное окно"
@@ -487,15 +533,29 @@ function WidgetPage({ s }: { s: Settings }) {
         <Row label="Тип">
           <Segmented<WidgetBackground>
             value={w.background}
-            onChange={setBackground}
+            onChange={(background) => setLook({ background })}
             options={[
-              ["none", "Нет"],
               ["tint", "Стекло"],
-              ["acrylic", "Акрил Windows"],
               ["cover", "Обложка"],
+              ["none", "Нет"],
             ]}
           />
         </Row>
+        {w.background === "tint" && (
+          <Row
+            label="Стекло"
+            hint={glass ? "Windows размывает рабочий стол за виджетом и сама скругляет углы" : "Только тонировка, без размытия: меньше нагрузка"}
+          >
+            <Segmented<WidgetGlass>
+              value={w.glass}
+              onChange={(g) => setLook({ glass: g })}
+              options={[
+                ["beauty", "Красиво"],
+                ["fast", "Быстро"],
+              ]}
+            />
+          </Row>
+        )}
         {(w.background === "tint" || w.background === "cover") && (
           <>
             <Row label="Цвет подложки">
@@ -507,13 +567,29 @@ function WidgetPage({ s }: { s: Settings }) {
         {w.background === "cover" && (
           <Slider label="Яркость обложки" value={w.coverOpacity} min={0.1} max={1} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(coverOpacity) => setWidget(s, { coverOpacity })} />
         )}
-        <Slider label="Скругление углов" value={w.radius} min={0} max={40} format={(v) => `${v} px`} onChange={(radius) => setWidget(s, { radius })} />
+        <Slider
+          label="Скругление углов"
+          hint={glass ? "У красивого стекла углы скругляет Windows" : undefined}
+          value={glass ? 8 : w.radius}
+          min={0}
+          max={40}
+          disabled={glass}
+          format={(v) => `${v} px`}
+          onChange={(radius) => setWidget(s, { radius })}
+        />
         <Slider label="Тень под текстом" hint="Помогает читать на пёстрых обоях" value={w.shadow} min={0} max={2} step={0.05} format={(v) => `${v.toFixed(2)}×`} onChange={(shadow) => setWidget(s, { shadow })} />
       </Section>
 
       <Section title="Содержимое">
         <Toggle label="Название трека сверху" value={w.showCaption} onChange={(showCaption) => setWidget(s, { showCaption })} />
         <Toggle label="Мини-обложка" value={w.showCover} disabled={!w.showCaption} onChange={(showCover) => setWidget(s, { showCover })} />
+        <Toggle
+          label="Эквалайзер в такт музыке"
+          hint="Полоски у названия двигаются под музыку. MUSE слушает только звук плеера, пока виджет виден; ничего не записывается"
+          value={w.levels}
+          disabled={!w.showCaption}
+          onChange={(levels) => setWidget(s, { levels })}
+        />
         <Toggle
           label="Кнопки плеера при наведении"
           hint={s.widgetClickThrough ? "Работают, когда клики не проходят насквозь" : undefined}

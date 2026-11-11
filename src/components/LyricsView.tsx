@@ -228,7 +228,7 @@ function Status({
  * Latin versions of the lines that differ from the original (Japanese,
  * Korean), by item index; null while there are none or the setting is off.
  */
-function useRomaji(key: string, items: Item[]): Map<number, string> | null {
+export function useRomaji(key: string, items: Item[]): Map<number, string> | null {
   const mode = useStore((s) => s.settings.romaji);
   const [result, setResult] = useState<{ items: Item[]; map: Map<number, string> } | null>(null);
   useEffect(() => {

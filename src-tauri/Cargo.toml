@@ -1,6 +1,6 @@
 [package]
 name = "muse"
-version = "0.5.0"
+version = "0.5.1"
 description = "Synced lyrics in the style of Apple Music"
 edition = "2021"
 
@@ -33,7 +33,9 @@ windows = { version = "0.61", features = [
   "Media_Control",
   "Storage_Streams",
   "Win32_Foundation",
+  "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",
+  "Win32_System_LibraryLoader",
   "Win32_System_Power",
   "Win32_Media_Audio",
   "Win32_System_Com",

@@ -1,12 +1,14 @@
-//! The beat of the playing app, for the background's pulse. Only that app's
-//! sound is heard, only while a window shows the pulsing background, and it
-//! is analysed on the spot: nothing is recorded or stored.
+//! The playing app's sound, for the background's pulse (beats) and the
+//! widget's level bars (loudness of four bands). Only that app is heard, only
+//! while a window shows one of those, and it is analysed on the spot: nothing
+//! is recorded or stored.
 
 mod beat;
 pub mod capture;
+mod levels;
 pub mod sessions;
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -16,21 +18,52 @@ use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
 
 use crate::state::AppState;
 
-/// Windows that show the pulse right now.
-static WANTED: Mutex<Option<HashSet<String>>> = Mutex::new(None);
+#[derive(Clone, Copy, Default)]
+struct Want {
+    beat: bool,
+    levels: bool,
+}
 
-pub fn want(window: &str, on: bool) {
+/// What each window shows right now: the pulsing background, level bars.
+static WANTED: Mutex<Option<HashMap<String, Want>>> = Mutex::new(None);
+
+fn set_want(window: &str, f: impl FnOnce(&mut Want)) {
     let mut w = WANTED.lock().unwrap();
-    let set = w.get_or_insert_with(HashSet::new);
-    if on {
-        set.insert(window.to_string());
-    } else {
-        set.remove(window);
+    let map = w.get_or_insert_with(HashMap::new);
+    let entry = map.entry(window.to_string()).or_default();
+    f(entry);
+    if !entry.beat && !entry.levels {
+        map.remove(window);
+    }
+}
+
+/// A window shows (or stops showing) the background that pulses to the beat.
+pub fn want(window: &str, on: bool) {
+    set_want(window, |w| w.beat = on);
+}
+
+/// A window shows (or stops showing) level bars.
+pub fn want_levels(window: &str, on: bool) {
+    set_want(window, |w| w.levels = on);
+}
+
+/// A window is gone: it wants nothing any more.
+pub fn forget(window: &str) {
+    if let Some(map) = WANTED.lock().unwrap().as_mut() {
+        map.remove(window);
     }
 }
 
 fn wanted() -> bool {
-    WANTED.lock().unwrap().as_ref().is_some_and(|s| !s.is_empty())
+    WANTED.lock().unwrap().as_ref().is_some_and(|m| !m.is_empty())
+}
+
+fn beat_wanted() -> bool {
+    WANTED.lock().unwrap().as_ref().is_some_and(|m| m.values().any(|w| w.beat))
+}
+
+fn level_windows() -> Vec<String> {
+    WANTED.lock().unwrap().as_ref().map(|m| m.iter().filter(|(_, w)| w.levels).map(|(k, _)| k.clone()).collect()).unwrap_or_default()
 }
 
 struct Running {
@@ -85,20 +118,31 @@ fn start(app: &AppHandle, pid: u32, exe: &str) -> Running {
     let stop = Arc::new(AtomicBool::new(false));
     let failed = Arc::new(AtomicBool::new(false));
     let (handle, stop2, failed2, exe) = (app.clone(), stop.clone(), failed.clone(), exe.to_string());
-    crate::log_info!("audio", "beat of {exe} (pid {pid})");
+    crate::log_info!("audio", "hearing {exe} (pid {pid})");
     let _ = std::thread::Builder::new().name("beat-capture".into()).spawn(move || {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
         let mut beats = beat::Beats::new(capture::RATE);
+        let mut bands = levels::Levels::new(capture::RATE);
         let mut mono: Vec<i16> = Vec::new();
         let ch = capture::CHANNELS as usize;
         let result = capture::run(pid, stop2, |samples, _| {
             mono.clear();
             mono.extend(samples.chunks_exact(ch).map(|f| ((f[0] as i32 + f[1] as i32) / 2) as i16));
-            beats.push(&mono, |s| {
-                let _ = handle.emit("audio:beat", s);
-            });
+            if beat_wanted() {
+                beats.push(&mono, |s| {
+                    let _ = handle.emit("audio:beat", s);
+                });
+            }
+            let targets = level_windows();
+            if !targets.is_empty() {
+                bands.push(&mono, |v| {
+                    for label in &targets {
+                        let _ = handle.emit_to(label.as_str(), "audio:levels", v);
+                    }
+                });
+            }
         });
         if let Err(e) = result {
             failed2.store(true, Ordering::Relaxed);

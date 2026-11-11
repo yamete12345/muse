@@ -3,7 +3,7 @@
  * the whole window: the surfaces under the pointer get --mx/--my (position) and
  * the is-lit class; CSS animates the rest.
  */
-const SELECTOR = ".lg, .st-card, .st-preset, .pv, .widget-controls";
+const SELECTOR = ".lg, .st-card, .st-preset, .pv, .widget-controls, .widget-glass .widget-panel";
 
 let lit = new Set<HTMLElement>();
 let last: PointerEvent | null = null;

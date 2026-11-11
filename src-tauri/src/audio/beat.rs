@@ -16,7 +16,7 @@ const MIN_GAP_S: f32 = 0.28;
 const SILENCE: f32 = 1e-6;
 
 /// Second-order low-pass (RBJ biquad).
-struct LowPass {
+pub(super) struct LowPass {
     b0: f32,
     b1: f32,
     b2: f32,
@@ -29,7 +29,7 @@ struct LowPass {
 }
 
 impl LowPass {
-    fn new(hz: f32, rate: u32) -> Self {
+    pub(super) fn new(hz: f32, rate: u32) -> Self {
         let w = 2.0 * std::f32::consts::PI * hz / rate as f32;
         let alpha = w.sin() / (2.0 * std::f32::consts::FRAC_1_SQRT_2);
         let cos = w.cos();
@@ -47,7 +47,7 @@ impl LowPass {
         }
     }
 
-    fn step(&mut self, x: f32) -> f32 {
+    pub(super) fn step(&mut self, x: f32) -> f32 {
         let y = self.b0 * x + self.b1 * self.x1 + self.b2 * self.x2 - self.a1 * self.y1 - self.a2 * self.y2;
         self.x2 = self.x1;
         self.x1 = x;

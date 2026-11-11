@@ -55,7 +55,12 @@ export interface MainStyle extends SceneStyle {
   idleSeconds: number;
 }
 
+/** "acrylic" is from older versions: it now means glass in the beautiful mode. */
 export type WidgetBackground = "none" | "tint" | "acrylic" | "cover";
+/** "Несколько строк": the scrolling lyrics; "Одна строка": only the line sung, word by word. */
+export type WidgetFormat = "lines" | "line";
+/** "beauty": the desktop blurred by Windows behind the glass; "fast": tint only. */
+export type WidgetGlass = "beauty" | "fast";
 
 export interface WidgetStyle {
   lyrics: LyricStyle;
@@ -68,6 +73,14 @@ export interface WidgetStyle {
   showCaption: boolean;
   showCover: boolean;
   controls: boolean;
+  format: WidgetFormat;
+  glass: WidgetGlass;
+  /** "Одна строка": colour of the word being sung; "auto" follows the text's accent. */
+  wordColor: string;
+  /** "Одна строка": brightness of the other words; null follows the text's inactive lines. */
+  restBrightness: number | null;
+  /** The bars by the title move with the music's loudness. */
+  levels: boolean;
 }
 
 export type Corner = "bottom-left" | "bottom-right" | "top-left" | "top-right";
@@ -132,6 +145,11 @@ export const DEFAULT_WIDGET: WidgetStyle = {
   showCaption: true,
   showCover: true,
   controls: true,
+  format: "lines",
+  glass: "beauty",
+  wordColor: "auto",
+  restBrightness: null,
+  levels: true,
 };
 
 export const DEFAULT_WALLPAPER: WallpaperStyle = {
@@ -275,7 +293,14 @@ function linkLyrics(own: LyricStyle, main: LyricStyle): LyricStyle {
 
 /** Each surface's own stored style (before linking), used when editing. */
 export const ownMain = (s: Settings): MainStyle => merge(DEFAULT_MAIN, s.mainStyle);
-export const ownWidget = (s: Settings): WidgetStyle => merge(DEFAULT_WIDGET, s.widgetStyle);
+export const ownWidget = (s: Settings): WidgetStyle => {
+  const w = merge(DEFAULT_WIDGET, s.widgetStyle);
+  // "Акрил Windows" from older versions is the beautiful glass now.
+  return w.background === "acrylic" ? { ...w, background: "tint", glass: "beauty" } : w;
+};
+
+/** Whether the widget asks Windows to blur the desktop behind it. */
+export const widgetBlur = (w: WidgetStyle): boolean => w.background === "tint" && w.glass === "beauty";
 /**
  * The wallpaper look stored for a monitor: its own when monitors are split,
  * otherwise the shared one. Monitors without their own look start from the shared.

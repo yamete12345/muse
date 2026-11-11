@@ -1226,7 +1226,8 @@ kbd {
  * Saving mode and paused music simply stop that clock.
  */
 .lc.is-live *,
-.src-eq i {
+.src-eq i,
+.widget-eq i {
   animation-play-state: paused !important;
   animation-delay: calc(var(--loop-t, 0s) + var(--loop-off, 0s)) !important;
 }

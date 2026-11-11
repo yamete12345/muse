@@ -21,6 +21,6 @@ export function installLoops() {
     all += dt;
     if (s.media?.playing) playing += dt;
     for (const el of document.querySelectorAll<HTMLElement>(".lc.is-live")) el.style.setProperty("--loop-t", `${(-playing).toFixed(3)}s`);
-    for (const el of document.querySelectorAll<HTMLElement>(".src-eq")) el.style.setProperty("--loop-t", `${(-all).toFixed(3)}s`);
+    for (const el of document.querySelectorAll<HTMLElement>(".src-eq, .widget-eq")) el.style.setProperty("--loop-t", `${(-all).toFixed(3)}s`);
   });
 }

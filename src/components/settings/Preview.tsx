@@ -3,8 +3,9 @@ import { useMemo, useRef, type CSSProperties } from "react";
 import { useCoverAccent } from "../../core/appearance";
 import { buildItems, parseLrc } from "../../core/lrc";
 import { useStore } from "../../core/store";
-import { hexToRgb, lyricVars, type LyricStyle, type SceneStyle, type WidgetStyle } from "../../core/style";
+import { hexToRgb, lyricVars, widgetBlur, type LyricStyle, type SceneStyle, type WidgetStyle } from "../../core/style";
 import { LyricsCanvas } from "../LyricsView";
+import { LineRunner } from "../WidgetLine";
 
 // Original demo lines; the long last word shows the held-note effect.
 const DEMO = `[00:00.40]Свет ложится на стекло
@@ -54,36 +55,48 @@ export function Preview({ look, variant, scene, widget, column }: Props) {
     };
   }
 
+  const glass = !!widget && widgetBlur(widget);
   const panel: CSSProperties | undefined =
     variant === "widget" && widget
       ? {
           background:
             widget.background === "tint" || widget.background === "cover"
               ? `rgba(${hexToRgb(widget.tint) ?? "11, 13, 15"}, ${widget.opacity})`
-              : widget.background === "acrylic"
-                ? "rgba(28, 31, 34, 0.55)"
-                : "transparent",
-          borderRadius: widget.radius,
-          backdropFilter: widget.background === "acrylic" ? "blur(20px)" : undefined,
+              : "transparent",
+          // The beautiful glass: the desktop blurred, corners as Windows rounds them.
+          borderRadius: glass ? 8 : widget.radius,
+          backdropFilter: glass ? "blur(18px) saturate(1.3)" : undefined,
         }
       : undefined;
+  const line = variant === "widget" && widget?.format === "line";
+  const lines = useMemo(() => items.flatMap((it) => (it.kind === "line" ? [it.line] : [])), [items]);
 
   return (
     <div className={`pv pv-${variant}`}>
       <div className={`pv-backdrop ${variant === "widget" ? "pv-desktop" : ""}`} style={variant === "widget" ? undefined : backdrop} />
-      <div className="pv-frame" style={panel}>
+      <div className={`pv-frame ${glass ? "pv-glass" : ""}`} style={panel}>
         {variant === "widget" && widget?.background === "cover" && cover && (
           <div className="widget-cover-bg" style={{ backgroundImage: `url(${cover})`, opacity: widget.coverOpacity }} />
         )}
-        <div className="lx-host" style={vars}>
-          <LyricsCanvas
-            items={items}
-            time={() => (performance.now() - t0.current) % LOOP_MS}
+        {line ? (
+          <LineRunner
             look={previewLook}
-            className={`lx-root lx-${variant === "wallpaper" ? "wallpaper" : variant} lx-preview`}
-            center={variant === "widget"}
+            wordColor={widget!.wordColor}
+            restBrightness={widget!.restBrightness}
+            lines={lines}
+            time={() => (performance.now() - t0.current) % LOOP_MS}
           />
-        </div>
+        ) : (
+          <div className="lx-host" style={vars}>
+            <LyricsCanvas
+              items={items}
+              time={() => (performance.now() - t0.current) % LOOP_MS}
+              look={previewLook}
+              className={`lx-root lx-${variant === "wallpaper" ? "wallpaper" : variant} lx-preview`}
+              center={variant === "widget"}
+            />
+          </div>
+        )}
       </div>
       <span className="pv-badge">Превью</span>
     </div>

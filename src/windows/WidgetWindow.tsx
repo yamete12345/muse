@@ -1,12 +1,14 @@
-import { useMemo, type CSSProperties } from "react";
+import { useEffect, useMemo, type CSSProperties } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
+import { LevelBars } from "../components/LevelBars";
 import { LyricsView } from "../components/LyricsView";
+import { WidgetLine } from "../components/WidgetLine";
 import { NextIcon, PauseIcon, PlayIcon, PrevIcon } from "../components/Icons";
 import { nextTrack, prevTrack, togglePlay, updateSettings } from "../core/api";
 import { useWidgetStyle } from "../core/appearance";
 import { useStore } from "../core/store";
-import { hexToRgb } from "../core/style";
+import { hexToRgb, widgetBlur } from "../core/style";
 import { useResolvedTheme } from "../core/theme";
 
 const win = getCurrentWindow();
@@ -18,6 +20,14 @@ export function WidgetWindow() {
   const cover = useStore((s) => s.cover);
   const edit = useStore((s) => !!s.settings.widgetEdit);
   const clickThrough = useStore((s) => s.settings.widgetClickThrough);
+  const blurOn = useStore((s) => s.settings.widgetAcrylic);
+  const synced = useStore((s) => !!s.lyrics && s.lyrics.key === s.media?.key && s.lyrics.kind === "synced");
+  const blur = widgetBlur(look);
+
+  // Rust blurs the desktop behind the window when the glass is beautiful.
+  useEffect(() => {
+    if (blurOn !== blur) updateSettings({ widgetAcrylic: blur });
+  }, [blur, blurOn]);
 
   const panel = useMemo(() => {
     const rgb = hexToRgb(look.tint) ?? "11, 13, 15";
@@ -34,7 +44,7 @@ export function WidgetWindow() {
   const showControls = look.controls && !clickThrough && !edit && !!media;
 
   return (
-    <div className={`widget widget-bg-${look.background} ${edit ? "is-edit" : ""}`} style={panel}>
+    <div className={`widget widget-bg-${look.background} ${blur ? "widget-glass" : ""} widget-format-${look.format} ${look.showCaption ? "" : "widget-no-caption"} ${edit ? "is-edit" : ""}`} style={panel}>
       <div className="widget-panel">
         {look.background === "cover" && cover && (
           <div className="widget-cover-bg" style={{ backgroundImage: `url(${cover})`, opacity: look.coverOpacity }} />
@@ -46,14 +56,14 @@ export function WidgetWindow() {
               <div className="widget-title">{media.title}</div>
               {media.artist && <div className="widget-artist">{media.artist}</div>}
             </div>
-            <span className={`widget-eq ${playing ? "is-playing" : ""}`} aria-hidden>
-              <i />
-              <i />
-              <i />
-            </span>
+            <LevelBars playing={playing} live={look.levels} />
           </div>
         )}
-        <LyricsView mode="widget" look={look.lyrics} style={look.showCaption ? undefined : { top: 0 }} />
+        {look.format === "line" && synced ? (
+          <WidgetLine look={look.lyrics} wordColor={look.wordColor} restBrightness={look.restBrightness} />
+        ) : (
+          <LyricsView mode="widget" look={look.lyrics} style={look.showCaption ? undefined : { top: 0 }} />
+        )}
         {showControls && (
           <div className="widget-controls">
             <button onClick={prevTrack} aria-label="Предыдущий">
