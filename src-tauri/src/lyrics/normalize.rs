@@ -65,6 +65,15 @@ pub fn primary_artist(artist: &str) -> String {
     ARTIST_SPLIT.split(&a).next().unwrap_or("").trim().to_string()
 }
 
+/// Apple Music for Windows reports "Artist - Album" as the artist and no
+/// album. Splits that back into the two (only the first dash: album names
+/// such as "Song - Single" keep theirs).
+pub fn split_artist_album(artist: &str) -> Option<(String, String)> {
+    let (a, album) = artist.split_once(" - ").or_else(|| artist.split_once(" — "))?;
+    let (a, album) = (a.trim(), album.trim());
+    (!a.is_empty() && !album.is_empty()).then(|| (a.to_string(), album.to_string()))
+}
+
 /// Video sites report "Artist - Title (Official Video)" with the channel as the
 /// artist. Splits that form when the artist looks like a channel name.
 pub fn split_video_title(artist: &str, title: &str) -> (String, String) {
@@ -95,6 +104,13 @@ pub fn track_key(artist: &str, title: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn apple_music_artist_and_album() {
+        assert_eq!(split_artist_album("ONDA ANDAR - KIDSCRY2DAY"), Some(("ONDA ANDAR".into(), "KIDSCRY2DAY".into())));
+        assert_eq!(split_artist_album("Kai Angel - Flowers - Single"), Some(("Kai Angel".into(), "Flowers - Single".into())));
+        assert_eq!(split_artist_album("9mice"), None);
+    }
 
     #[test]
     fn keeps_meaningful_parentheses() {

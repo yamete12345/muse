@@ -207,7 +207,14 @@ fn read_props(s: &Session) -> windows::core::Result<TrackProps> {
     if artist.trim().is_empty() {
         artist = props.AlbumArtist().map(|h| h.to_string()).unwrap_or_default();
     }
-    let album = props.AlbumTitle().map(|h| h.to_string()).unwrap_or_default();
+    let mut album = props.AlbumTitle().map(|h| h.to_string()).unwrap_or_default();
+    // Apple Music glues the album to the artist.
+    let apple = s.SourceAppUserModelId().map(|h| h.to_string().contains("AppleMusic")).unwrap_or(false);
+    if apple && album.trim().is_empty() {
+        if let Some((a, al)) = normalize::split_artist_album(&artist) {
+            (artist, album) = (a, al);
+        }
+    }
     Ok(TrackProps { props, title, artist, album })
 }
 

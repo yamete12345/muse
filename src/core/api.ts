@@ -17,6 +17,10 @@ export function seek(ms: number) {
   return quiet(invoke("media_seek", { ms: target }));
 }
 
+/** Asks the window to say that the player can't be seeked from MUSE (LyricsView shows it). */
+export const NO_SEEK_EVENT = "muse:no-seek";
+export const notifyNoSeek = () => window.dispatchEvent(new Event(NO_SEEK_EVENT));
+
 /** Seeks so that the given lyrics timestamp is "now". */
 export function seekLyrics(ms: number) {
   return seek(ms - clock.offsetMs + 30);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { nextTrack, prevTrack, seek, setOffset, shiftOffset, togglePlay, updateSettings } from "../core/api";
+import { nextTrack, notifyNoSeek, prevTrack, seek, setOffset, shiftOffset, togglePlay, updateSettings } from "../core/api";
 import { appOffsetOf, clock, getState, useStore } from "../core/store";
 import { onFrame } from "../core/ticker";
 import { Glass } from "./Glass/Glass";
@@ -68,8 +68,12 @@ export function PlayerBar() {
             <div
               ref={track}
               className={`track ${canSeek ? "can-seek" : ""} ${scrub !== null ? "is-scrubbing" : ""}`}
+              title={canSeek || !media ? undefined : `${media.appName || "Этот плеер"} не даёт перематывать из других приложений`}
               onPointerDown={(e) => {
-                if (!canSeek) return;
+                if (!canSeek) {
+                  if (media && duration > 0) notifyNoSeek();
+                  return;
+                }
                 e.currentTarget.setPointerCapture(e.pointerId);
                 setScrub(posFromEvent(e));
               }}

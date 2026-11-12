@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
-import { retryLyrics, seekLyrics } from "../core/api";
+import { NO_SEEK_EVENT, notifyNoSeek, retryLyrics, seekLyrics } from "../core/api";
 import { useCoverAccent } from "../core/appearance";
 import { buildItems, parseLrc, type Item } from "../core/lrc";
 import { romanize, wantsRomaji } from "../core/romaji";
 import { estimateWords } from "../core/timing";
 import { LyricsEngine } from "../core/lyricsEngine";
-import { clock, useStore } from "../core/store";
+import { clock, getState, useStore } from "../core/store";
 import { partLabels, type PartLabel } from "../core/parts";
 import { engineTuning, lyricVars, type LyricStyle } from "../core/style";
 import { openPanel } from "../core/ui";
@@ -48,7 +48,11 @@ export function LyricsCanvas({ items, time, look, className, center, interactive
     const e = new LyricsEngine(root.current!, () => timeRef.current(), {
       center,
       interactive: !!interactive,
-      onSeek: seekLyrics,
+      onSeek: (ms) => {
+        // Apple Music, for one, refuses to be seeked from other apps.
+        if (getState().media?.canSeek === false) notifyNoSeek();
+        else seekLyrics(ms);
+      },
       onLineMenu: (item, x, y) => menuRef.current?.(item, x, y),
     });
     engine.current = e;
@@ -106,6 +110,7 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
   const [share, setShare] = useState<string[] | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; item: Item } | null>(null);
   const [copied, setCopied] = useState(0);
+  const [noSeek, setNoSeek] = useState(0);
   const linesFrom = (item: Item) =>
     items.slice(items.indexOf(item)).flatMap((it) => (it.kind === "line" && it.line.text.trim() ? [it.line.text] : [])).slice(0, 4);
   const openMenu = (item: Item, x: number, y: number) => {
@@ -116,6 +121,18 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
     const t = setTimeout(() => setCopied(0), 1600);
     return () => clearTimeout(t);
   }, [copied]);
+  // A line or the timeline was clicked, but the player refuses to be seeked.
+  useEffect(() => {
+    const show = () => setNoSeek(Date.now());
+    window.addEventListener(NO_SEEK_EVENT, show);
+    return () => window.removeEventListener(NO_SEEK_EVENT, show);
+  }, []);
+  useEffect(() => {
+    if (!noSeek) return;
+    const t = setTimeout(() => setNoSeek(0), 2600);
+    return () => clearTimeout(t);
+  }, [noSeek]);
+  const appName = useStore((s) => s.media?.appName || "Этот плеер");
   const vars = useMemo(() => ({ ...lyricVars(look, accent), ...style }), [look, accent, style]);
 
   let status: React.ReactNode = null;
@@ -186,6 +203,11 @@ export function LyricsView({ mode, look, style, suspended }: Props) {
         />
       )}
       {copied > 0 && <div className="copied-toast" key={copied}>Строка скопирована</div>}
+      {noSeek > 0 && (
+        <div className="copied-toast" key={noSeek}>
+          {appName} не даёт перематывать из других приложений
+        </div>
+      )}
       {share && <ShareDialog lines={share} onClose={() => setShare(null)} />}
       {!synced && status}
     </div>
