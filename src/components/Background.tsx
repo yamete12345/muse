@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -8,6 +8,7 @@ import { MeshBackground, noiseDataUrl } from "../core/background";
 import { frameRateOf, useSaving } from "../core/power";
 import { useStore } from "../core/store";
 import type { SceneStyle } from "../core/style";
+import { reportShaderError, useThemeShader } from "../core/themes";
 
 interface Props {
   light: boolean;
@@ -26,15 +27,25 @@ export function Background({ light, scene, syncWindow = true }: Props) {
   const still = useSaving() !== null;
   const noise = useMemo(noiseDataUrl, []);
   const solid = scene.background === "solid";
-  const look = scene.background === "gradient" ? "gradient" : "cover";
-  const beat = look === "gradient" && scene.bgBeat && !solid && !still;
+  // "From the theme": its shader, or the cover's colours when it has none or it fails.
+  const shader = useThemeShader();
+  const [broken, setBroken] = useState<string | null>(null);
+  const custom = scene.background === "theme" && !!shader && broken !== shader ? shader : null;
+  const look = custom ? "custom" : scene.background === "gradient" || scene.background === "theme" ? "gradient" : "cover";
+  const canvasKey = custom ? `custom-${hash(custom)}` : look;
+  const beat = look !== "cover" && scene.bgBeat && !solid && !still;
 
   useEffect(() => {
     if (solid) return;
     let b: MeshBackground;
     try {
-      b = new MeshBackground(canvas.current!, look);
+      b = new MeshBackground(canvas.current!, look, custom ?? undefined);
     } catch (e) {
+      if (custom) {
+        reportShaderError(custom, e instanceof Error ? e.message : String(e));
+        setBroken(custom);
+        return;
+      }
       console.warn("background disabled:", e);
       return;
     }
@@ -50,15 +61,15 @@ export function Background({ light, scene, syncWindow = true }: Props) {
       b.destroy();
       bg.current = null;
     };
-  }, [solid, look, syncWindow]);
+  }, [solid, look, syncWindow, custom]);
 
-  useEffect(() => bg.current?.setCover(cover), [cover, solid, look]);
-  useEffect(() => bg.current?.setPlaying(playing), [playing, solid, look]);
-  useEffect(() => bg.current?.setFps(fps), [fps, solid, look]);
-  useEffect(() => bg.current?.setTheme(light), [light, solid, look]);
+  useEffect(() => bg.current?.setCover(cover), [cover, solid, canvasKey]);
+  useEffect(() => bg.current?.setPlaying(playing), [playing, solid, canvasKey]);
+  useEffect(() => bg.current?.setFps(fps), [fps, solid, canvasKey]);
+  useEffect(() => bg.current?.setTheme(light), [light, solid, canvasKey]);
   useEffect(
     () => bg.current?.setScene(scene.bgBrightness, scene.bgSaturation, scene.background === "static" || still ? 0 : scene.bgSpeed),
-    [scene.bgBrightness, scene.bgSaturation, scene.bgSpeed, scene.background, solid, look, still],
+    [scene.bgBrightness, scene.bgSaturation, scene.bgSpeed, scene.background, solid, canvasKey, still],
   );
 
   // The beat: MUSE hears the playing app only while this window shows the pulse.
@@ -86,10 +97,17 @@ export function Background({ light, scene, syncWindow = true }: Props) {
       {solid ? (
         <div className="bg-solid" style={{ background: scene.bgColor, filter: `brightness(${scene.bgBrightness})` }} />
       ) : (
-        <canvas ref={canvas} key={look} />
+        <canvas ref={canvas} key={canvasKey} />
       )}
       {/* One noise dot per screen pixel: it breaks up banding without showing as grain. */}
       <div className="bg-noise" style={{ backgroundImage: `url(${noise})`, backgroundSize: `${128 / (window.devicePixelRatio || 1)}px` }} />
     </div>
   );
+}
+
+/** A short fingerprint of a shader, so a changed one gets a fresh canvas. */
+function hash(text: string): string {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
 }

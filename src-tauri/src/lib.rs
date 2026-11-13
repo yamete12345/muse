@@ -7,6 +7,7 @@ mod media;
 mod power;
 mod settings;
 mod state;
+mod themes;
 mod tray;
 mod updater;
 mod wallpaper;
@@ -262,6 +263,7 @@ fn listen_levels(window: tauri::Window, on: bool) {
 
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
         .plugin(
@@ -357,6 +359,12 @@ pub fn run() {
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
+            themes::list_themes,
+            themes::get_theme,
+            themes::install_theme,
+            themes::remove_theme,
+            themes::export_theme,
+            themes::open_themes_folder,
             listen_beat,
             listen_levels,
             power_state,

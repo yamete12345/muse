@@ -7,7 +7,8 @@
  */
 import { onFrame } from "./ticker";
 
-export type BackgroundLook = "cover" | "gradient";
+/** "custom": a theme's own fragment shader (see THEME_PREFIX). */
+export type BackgroundLook = "cover" | "gradient" | "custom";
 
 /**
  * The gradient has crisp edges, so it needs more detail than the blurred
@@ -77,14 +78,15 @@ void main() {
  * "Cover colors", like Apple Music: the cover itself, blurred to its colors
  * and stirred by a few slow whirls. Its big areas fill most of the screen,
  * the rest is drawn out into long soft strokes; where a whirl squeezes two
- * colors together they meet in a clearer edge. Light areas brighten a
- * little on each beat of the song.
+ * colors together they meet in a clearer edge. On each kick or bass hit
+ * the dark areas deepen and briefly spread a little into their surroundings.
  */
 const GRADIENT_FRAG = TONE + `
 uniform sampler2D uA;
 uniform sampler2D uB;
 uniform float uBeat;
-uniform vec2 uBeatDir;
+/** The cover's average brightness: "dark" is darker than this. */
+uniform float uMid;
 uniform vec4 uPhA;
 uniform vec4 uPhB;
 uniform vec4 uPhC;
@@ -124,6 +126,11 @@ vec3 cover(vec2 uv) {
   return mix(texture2D(uA, uv).rgb, texture2D(uB, uv).rgb, uMix);
 }
 
+/** How dark a colour is for this cover: 0 (its average or lighter) to 1. */
+float shade(vec3 c) {
+  return smoothstep(uMid + 0.02, uMid - 0.16, dot(c, vec3(0.299, 0.587, 0.114)));
+}
+
 void main() {
   float T = uTime;
   vec2 p = vUv - 0.5;
@@ -148,16 +155,39 @@ void main() {
   float fit = 0.66 / max(1.0, uAspect / 1.4);
   vec2 uv = q * fit + 0.5;
   vec3 col = cover(uv);
-  // The beat: every spot briefly takes on a little of its neighbour's colour,
-  // so dark patches lighten and light ones darken a touch, a new way each beat.
-  col = mix(col, cover(uv + uBeatDir * 0.24), uBeat * 0.6);
   // A second, larger copy turning the other way keeps it from looking like a photo.
   col = mix(col, cover(rot(1.9 + a.z - T * 0.021) * q * 0.42 + 0.5), 0.28);
+  // The beat (a kick or a bass hit): the dark areas deepen and reach a little
+  // further out, as if the shadow swelled with the low end and settled back.
+  if (uBeat > 0.002) {
+    float d = shade(col);
+    float r = 0.075 * uBeat;
+    for (int k = 0; k < 6; k++) {
+      float ang = float(k) * 1.0472 + a.x;
+      d = max(d, 0.85 * shade(cover(uv + r * vec2(cos(ang), sin(ang)))));
+    }
+    col *= 1.0 - 0.34 * uBeat * d;
+  }
   float l = dot(col, vec3(0.299, 0.587, 0.114));
   // White covers give a soft grey, not a glare (dark theme).
   col *= mix(1.12 - 0.42 * l, 1.0, uTheme);
   gl_FragColor = vec4(tone(col), 1.0);
 }`;
+
+/**
+ * What a theme's shader gets (docs/THEMES.md): everything above (vUv, uTime,
+ * uMix, uTheme, uAspect, uBright, uSat, tone()), the two covers it fades
+ * between, the beat, the cover's average brightness and random phases.
+ */
+const THEME_PREFIX = TONE + `
+uniform sampler2D uA;
+uniform sampler2D uB;
+uniform float uBeat;
+uniform float uMid;
+uniform vec4 uPhA;
+vec3 cover(vec2 uv) { return mix(texture2D(uA, uv).rgb, texture2D(uB, uv).rgb, uMix); }
+#line 1
+`;
 
 const TEX = 64;
 const SCALE = 1 / 6;
@@ -187,17 +217,21 @@ export class MeshBackground {
   /** Beat pulse: `kick` jumps on a beat and decays; `beat` follows it softly. */
   private kick = 0;
   private beat = 0;
-  /** Which way colours shift on the current beat. */
-  private beatDir: [number, number] = [1, 0];
   /** Gradient look: random phases and strengths of its moves, eased toward a new roll per song. */
   private seed = rollSeed();
   private seedTarget = this.seed.slice();
   onTone: ((rgb: [number, number, number]) => void) | null = null;
 
+  /** The gradient and a theme's shader: a sharper texture at a higher resolution. */
+  private readonly rich: boolean;
+
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly look: BackgroundLook = "cover",
+    look: BackgroundLook = "cover",
+    /** For "custom": the theme's fragment shader. */
+    fragment?: string,
   ) {
+    this.rich = look !== "cover";
     const gl = canvas.getContext("webgl", {
       alpha: false,
       antialias: false,
@@ -212,15 +246,16 @@ export class MeshBackground {
     const prog = gl.createProgram()!;
     for (const [type, src] of [
       [gl.VERTEX_SHADER, VERT],
-      [gl.FRAGMENT_SHADER, look === "gradient" ? GRADIENT_FRAG : COVER_FRAG],
+      [gl.FRAGMENT_SHADER, look === "custom" ? THEME_PREFIX + (fragment ?? "") : look === "gradient" ? GRADIENT_FRAG : COVER_FRAG],
     ] as const) {
       const sh = gl.createShader(type)!;
       gl.shaderSource(sh, src);
       gl.compileShader(sh);
-      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh) ?? "shader");
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh) || "shader");
       gl.attachShader(prog, sh);
     }
     gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) || "shader link");
     gl.useProgram(prog);
 
     const buf = gl.createBuffer();
@@ -230,14 +265,14 @@ export class MeshBackground {
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
-    for (const name of ["uA", "uB", "uMix", "uTime", "uTheme", "uAspect", "uBright", "uSat", "uBeat", "uBeatDir", "uPhA", "uPhB", "uPhC", "uAmpW", "uAmpF"])
+    for (const name of ["uA", "uB", "uMix", "uTime", "uTheme", "uAspect", "uBright", "uSat", "uBeat", "uMid", "uPhA", "uPhB", "uPhC", "uAmpW", "uAmpF"])
       this.u[name] = gl.getUniformLocation(prog, name);
     gl.uniform1i(this.u.uA, 0);
     gl.uniform1i(this.u.uB, 1);
 
     this.texA = this.makeTexture(0);
     this.texB = this.makeTexture(1);
-    this.upload(this.texA, 0, downsample(fallbackCover(), look));
+    this.upload(this.texA, 0, downsample(fallbackCover(), this.rich));
 
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(canvas);
@@ -268,13 +303,8 @@ export class MeshBackground {
     this.onTone?.(this.tone());
   }
 
-  /** A beat in the song, strength 0..1 (gradient look only). */
+  /** A beat in the song, strength 0..1 (the gradient and a theme's shader). */
   pulse(strength: number) {
-    // A new direction only for a fresh beat, not while one is still fading in.
-    if (this.kick < 0.25) {
-      const a = Math.random() * Math.PI * 2;
-      this.beatDir = [Math.cos(a), Math.sin(a)];
-    }
     // Ordinary beats come in around 0.3–0.4: lift them so each one shows.
     this.kick = Math.max(this.kick, 0.55 + 0.45 * strength);
   }
@@ -308,7 +338,7 @@ export class MeshBackground {
       if (token !== this.loadToken) return;
       // Commit any running fade so the new cover fades from what is on screen.
       if (this.fading) this.swap();
-      const small = downsample(src, this.look);
+      const small = downsample(src, this.rich);
       this.average = averageColor(small);
       this.upload(this.texB, 1, small);
       // A new song rearranges the moves a little.
@@ -356,7 +386,7 @@ export class MeshBackground {
   }
 
   private resize() {
-    const scale = this.look === "gradient" ? GRADIENT_SCALE : SCALE;
+    const scale = this.rich ? GRADIENT_SCALE : SCALE;
     const w = Math.max(48, Math.round(this.canvas.clientWidth * scale));
     const h = Math.max(48, Math.round(this.canvas.clientHeight * scale));
     if (this.canvas.width !== w || this.canvas.height !== h) {
@@ -377,8 +407,9 @@ export class MeshBackground {
     gl.uniform1f(this.u.uBright, this.brightness);
     gl.uniform1f(this.u.uSat, this.saturation);
     gl.uniform1f(this.u.uBeat, this.beat);
-    gl.uniform2f(this.u.uBeatDir, this.beatDir[0], this.beatDir[1]);
-    if (this.look === "gradient") {
+    const [r, g, b] = this.average;
+    gl.uniform1f(this.u.uMid, (0.299 * r + 0.587 * g + 0.114 * b) / 255);
+    if (this.rich) {
       const r = this.seed;
       gl.uniform4f(this.u.uPhA, r[0], r[1], r[2], r[3]);
       gl.uniform4f(this.u.uPhB, r[4], r[5], r[6], r[7]);
@@ -444,16 +475,16 @@ function rollSeed(from?: number[]): number[] {
 
 const smoothstep = (x: number) => x * x * (3 - 2 * x);
 
-function downsample(src: CanvasImageSource, look: BackgroundLook = "cover"): HTMLCanvasElement {
+function downsample(src: CanvasImageSource, rich = false): HTMLCanvasElement {
   const c = document.createElement("canvas");
-  const size = look === "gradient" ? GRADIENT_TEX : TEX;
+  const size = rich ? GRADIENT_TEX : TEX;
   c.width = c.height = size;
   const ctx = c.getContext("2d")!;
   // The gradient keeps only the colors: small details melt into their surroundings
   // (large, soft areas, like Apple Music).
-  ctx.filter = look === "gradient" ? "blur(16px) saturate(1.1)" : "blur(2px) saturate(1.25)";
+  ctx.filter = rich ? "blur(16px) saturate(1.1)" : "blur(2px) saturate(1.25)";
   // Overdraw so the blur does not pull in transparent edges.
-  const o = look === "gradient" ? 32 : 4;
+  const o = rich ? 32 : 4;
   ctx.drawImage(src, -o, -o, size + 2 * o, size + 2 * o);
   return c;
 }

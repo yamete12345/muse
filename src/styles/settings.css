@@ -968,6 +968,46 @@
   font-size: 12px;
 }
 
+/* ---- Themes ---- */
+
+.st-preset-delete.is-armed {
+  opacity: 1;
+  transform: none;
+  background: rgba(232, 64, 80, 0.9);
+}
+
+.st-preset.is-broken .st-preset-swatch {
+  filter: grayscale(1) brightness(0.6);
+}
+
+.st-preset.is-broken .st-preset-hint {
+  color: rgb(255, 140, 150);
+}
+
+.st-theme-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+  animation: item-in 0.35s var(--ease-out) backwards;
+}
+
+.st-theme-form .st-preset-form-buttons {
+  grid-column: 1 / -1;
+}
+
+.st-theme-note {
+  margin: 12px 4px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.st-theme-note.is-bad {
+  color: rgb(255, 140, 150);
+}
+
 /* ---- About: updates and links ---- */
 
 .sw-about-foot {

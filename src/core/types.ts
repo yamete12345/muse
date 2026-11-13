@@ -91,6 +91,8 @@ export interface Settings {
   appOffsets: Record<string, number>;
   /** Latin letters for Japanese and Korean lyrics. */
   romaji: RomajiMode;
+  /** Folder name of the theme whose stylesheet and shader are in use; empty: none. */
+  activeTheme: string;
 }
 
 export type RomajiMode = "under" | "instead" | "off";

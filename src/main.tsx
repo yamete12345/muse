@@ -7,6 +7,7 @@ import { installCursorLight } from "./core/light";
 import { installLoops } from "./core/loops";
 import { installPower } from "./core/power";
 import { initStore } from "./core/store";
+import { installThemes } from "./core/themes";
 import { MainWindow } from "./windows/MainWindow";
 import { WallpaperWindow } from "./windows/WallpaperWindow";
 import { WidgetWindow } from "./windows/WidgetWindow";
@@ -19,7 +20,8 @@ import "./styles/settings.css";
 import "./styles/cover.css";
 
 const label = getCurrentWindow().label;
-if (label === "widget") document.documentElement.classList.add("is-widget");
+// Which window this is, for the app's own styles and for theme stylesheets.
+document.documentElement.classList.add(label === "widget" ? "is-widget" : label.startsWith("wallpaper-") ? "is-wallpaper" : "is-main");
 
 const views: Record<string, () => JSX.Element> = {
   widget: WidgetWindow,
@@ -43,5 +45,6 @@ window.addEventListener("contextmenu", (e) => {
 
 // No StrictMode: its double effects would create and then lose the WebGL context.
 initStore().finally(() => {
+  installThemes();
   createRoot(document.getElementById("root")!).render(<View />);
 });

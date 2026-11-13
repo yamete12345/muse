@@ -18,7 +18,7 @@ export interface AppStore {
   power: PowerState;
 }
 
-const defaultSettings: Settings = {
+export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   widgetEnabled: false,
   widgetAcrylic: false,
@@ -30,6 +30,7 @@ const defaultSettings: Settings = {
   wallpaperMonitors: [-1],
   wallpaperSplit: false,
   wallpaperStyles: null,
+  activeTheme: "",
   userPresets: null,
   wallpaperPauseCovered: true,
   wallpaperLinked: false,
@@ -59,7 +60,7 @@ export function patchSettingsLocal(patch: Partial<Settings>) {
 }
 let localUntil = 0;
 
-let state: AppStore = { ready: false, media: null, cover: null, lyrics: null, settings: defaultSettings, offsetMs: 0, parts: null, power: { battery: false, game: false } };
+let state: AppStore = { ready: false, media: null, cover: null, lyrics: null, settings: DEFAULT_SETTINGS, offsetMs: 0, parts: null, power: { battery: false, game: false } };
 const listeners = new Set<() => void>();
 
 export const clock = new PlaybackClock();

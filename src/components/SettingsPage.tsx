@@ -8,6 +8,7 @@ import { ActionButton, Row, Section, Segmented, Slider, Toggle, ColorField } fro
 import { LyricStyleEditor, SceneEditor } from "./settings/editors";
 import { Preview } from "./settings/Preview";
 import { PresetPicker, ResetButton, WidgetPlacement } from "./settings/presets";
+import { ThemesSection } from "./settings/themes";
 import { listMonitors, openLog, openLogFolder, updateSettings } from "../core/api";
 import { useStore } from "../core/store";
 import {
@@ -352,6 +353,7 @@ function LookTab({ s }: { s: Settings }) {
   const [surface, setSurface] = useState<Surface>("main");
   return (
     <>
+      <ThemesSection />
       <div className="st-surfaces">
         <Segmented<Surface>
           value={surface}

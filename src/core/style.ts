@@ -36,7 +36,8 @@ export interface LyricStyle {
 }
 
 /** "gradient": the cover's colors flowing; "animated": the blurred cover itself, lighter on the GPU. */
-export type BackgroundMode = "gradient" | "animated" | "static" | "solid";
+/** "theme": the active theme's own shader (core/themes.ts); the gradient where there is none. */
+export type BackgroundMode = "gradient" | "animated" | "static" | "solid" | "theme";
 
 export interface SceneStyle {
   background: BackgroundMode;
@@ -44,7 +45,7 @@ export interface SceneStyle {
   bgBrightness: number;
   bgSaturation: number;
   bgSpeed: number;
-  /** Gradient: colours shift a little on every beat. */
+  /** Gradient: the dark areas deepen and spread a little on every bass hit. */
   bgBeat: boolean;
 }
 
@@ -119,7 +120,7 @@ export const DEFAULT_LYRICS: LyricStyle = {
   anchor: 0.3,
 };
 
-const SCENE: SceneStyle = {
+export const DEFAULT_SCENE: SceneStyle = {
   background: "gradient",
   bgColor: "#1c252b",
   bgBrightness: 1,
@@ -127,6 +128,8 @@ const SCENE: SceneStyle = {
   bgSpeed: 1,
   bgBeat: true,
 };
+
+const SCENE = DEFAULT_SCENE;
 
 export const DEFAULT_MAIN: MainStyle = {
   ...SCENE,
@@ -172,7 +175,7 @@ const LAYOUT_KEYS = ["fontSize", "anchor", "align"] as const;
 /** What a linked surface keeps for itself; alignment follows the main window. */
 const OWN_WHEN_LINKED = ["fontSize", "anchor"] as const;
 
-function keepLayout(next: LyricStyle, own: LyricStyle, keys: readonly (keyof LyricStyle)[] = LAYOUT_KEYS): LyricStyle {
+export function keepLayout(next: LyricStyle, own: LyricStyle, keys: readonly (keyof LyricStyle)[] = LAYOUT_KEYS): LyricStyle {
   const out = { ...next };
   for (const k of keys) (out as Record<string, unknown>)[k] = own[k];
   return out;

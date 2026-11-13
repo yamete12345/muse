@@ -1,0 +1,35 @@
+{
+  "muse": 1,
+  "name": "Северное сияние",
+  "author": "MUSE",
+  "version": "1.0",
+  "description": "Ленты цветов обложки медленно плывут вверх и вспыхивают на басу",
+  "colors": ["#5ef2c4", "#0b1726"],
+  "main": {
+    "background": "theme",
+    "bgSaturation": 1.25,
+    "bgBrightness": 1,
+    "bgSpeed": 1,
+    "bgBeat": true,
+    "lyrics": { "accent": "#5ef2c4", "glow": 1.6, "fontWeight": 800, "blur": 1.2, "unsung": 0.3 }
+  },
+  "widget": {
+    "background": "tint",
+    "glass": "beauty",
+    "tint": "#0b1726",
+    "opacity": 0.3,
+    "frost": 0.35,
+    "radius": 20,
+    "wordColor": "#5ef2c4",
+    "lyrics": { "accent": "#5ef2c4", "glow": 1.3, "fontWeight": 800 }
+  },
+  "wallpaper": {
+    "background": "theme",
+    "bgSaturation": 1.2,
+    "bgBeat": true,
+    "dim": 0.1,
+    "lyrics": { "accent": "#5ef2c4", "glow": 1.4, "fontWeight": 800 }
+  },
+  "css": "style.css",
+  "shader": "background.frag"
+}

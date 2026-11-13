@@ -71,6 +71,8 @@ pub struct Settings {
     pub app_offsets: std::collections::BTreeMap<String, i64>,
     /// Latin letters for Japanese and Korean lyrics: "under", "instead" or "off".
     pub romaji: String,
+    /// Folder name of the theme whose stylesheet and shader are in use; empty: none.
+    pub active_theme: String,
 }
 
 impl Default for Settings {
@@ -109,6 +111,7 @@ impl Default for Settings {
             media_source: String::new(),
             app_offsets: Default::default(),
             romaji: "under".into(),
+            active_theme: String::new(),
         }
     }
 }

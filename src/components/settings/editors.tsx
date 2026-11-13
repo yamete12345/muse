@@ -1,4 +1,5 @@
-import type { Align, FillMode, FontChoice, LyricStyle, Motion, SceneStyle } from "../../core/style";
+import type { Align, BackgroundMode, FillMode, FontChoice, LyricStyle, Motion, SceneStyle } from "../../core/style";
+import { useThemeShader, useThemeShaderError } from "../../core/themes";
 import { ColorField, Row, Section, Segmented, Slider, Toggle } from "./controls";
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -135,8 +136,19 @@ export function SceneEditor({
   hint?: string;
 }) {
   const solid = s.background === "solid";
+  const shader = useThemeShader();
+  const shaderError = useThemeShaderError();
+  const fromTheme = s.background === "theme";
+  const moving = s.background === "animated" || s.background === "gradient" || fromTheme;
+  const themeHint = !fromTheme
+    ? undefined
+    : !shader
+      ? "У активной темы нет своего фона — показываются цвета обложки"
+      : shaderError
+        ? `Фон темы не запустился, вместо него цвета обложки. ${shaderError.split("\n")[0]}`
+        : "Фон рисует шейдер активной темы";
   return (
-    <Section title="Фон" hint={hint ?? (linked ? "Фон берётся из главного окна" : undefined)}>
+    <Section title="Фон" hint={fromTheme && shader && shaderError ? themeHint : (hint ?? (linked ? "Фон берётся из главного окна" : themeHint))}>
       <Row label="Тип фона" disabled={linked}>
         <Segmented
           value={s.background}
@@ -147,6 +159,7 @@ export function SceneEditor({
             ["animated", "Живая обложка"],
             ["static", "Статичная"],
             ["solid", "Цвет"],
+            ...(shader || fromTheme ? ([["theme", "Из темы"]] as [BackgroundMode, string][]) : []),
           ]}
         />
       </Row>
@@ -159,13 +172,13 @@ export function SceneEditor({
       {!solid && (
         <>
           <Slider label="Насыщенность" value={s.bgSaturation} min={0} max={2} step={0.02} format={pct} disabled={linked} onChange={(bgSaturation) => onChange({ bgSaturation })} />
-          {(s.background === "animated" || s.background === "gradient") && (
+          {moving && (
             <Slider label="Скорость движения" value={s.bgSpeed} min={0.1} max={3} step={0.05} format={times} disabled={linked} onChange={(bgSpeed) => onChange({ bgSpeed })} />
           )}
-          {s.background === "gradient" && (
+          {(s.background === "gradient" || fromTheme) && (
             <Toggle
               label="Под бит"
-              hint="На каждый удар цвета чуть меняются местами: тёмное светлеет, светлое темнеет. MUSE слушает только звук играющего приложения, пока фон виден; ничего не записывается"
+              hint="На каждый удар баса тёмные места фона темнеют и чуть расползаются. MUSE слушает только звук играющего приложения, пока фон виден; ничего не записывается"
               value={s.bgBeat}
               disabled={linked}
               onChange={(bgBeat) => onChange({ bgBeat })}

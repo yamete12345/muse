@@ -1,6 +1,6 @@
 [package]
 name = "muse"
-version = "0.5.3"
+version = "0.5.4"
 description = "Synced lyrics in the style of Apple Music"
 edition = "2021"
 
@@ -16,6 +16,10 @@ tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = "2"
+# File pickers for installing and saving themes.
+tauri-plugin-dialog = "2"
+# Theme packs come and go as .zip files.
+zip = { version = "2", default-features = false, features = ["deflate"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "gzip"] }

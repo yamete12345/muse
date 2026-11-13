@@ -9,6 +9,7 @@ const base = {
   wallpaperStyle: { ...DEFAULT_WALLPAPER, position: "left", lyrics: { ...DEFAULT_WALLPAPER.lyrics, align: "left" } },
   wallpaperSplit: false,
   wallpaperStyles: null,
+  activeTheme: "",
 } as unknown as Settings;
 
 describe("linking", () => {
